@@ -78,6 +78,19 @@ Preferred communication style: Simple, everyday language.
 - Unique personas and conversation contexts
 - Positioned at specific world locations (restaurants, schools, banks, etc.)
 
+**Animated Objects**:
+- Wizard NPC can spawn animated objects using AI generation
+- Objects animate according to their function:
+  - Dogs: Walk along circular paths with bobbing animation
+  - Birds: Fly along curved paths with wing-flapping motion
+  - Drones: Hover and fly with smooth oscillation
+  - Helicopters: Stationary with spinning rotor blades
+  - Balls: Physics-based bouncing and rolling with friction
+  - Race cars: Drive along paths with proper rotation
+- Object type detection from player's spoken description
+- Voxel-based animations using instanced mesh matrix updates
+- Each animated object maintains its own path and animation state
+
 ### Build Tool & Development
 
 **Vite** (v6.2.0)
