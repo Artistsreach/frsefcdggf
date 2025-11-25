@@ -1080,11 +1080,13 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                   const matrix = new THREE.Matrix4();
                   state.instancedMesh.getMatrixAt(intersection.instanceId, matrix);
                   const pos = new THREE.Vector3().setFromMatrixPosition(matrix);
-                  const key = `${pos.x},${pos.y},${pos.z}`;
+                  // Round position to integers for lookup (voxelMap keys are integers)
+                  const roundedPos = [Math.round(pos.x), Math.round(pos.y), Math.round(pos.z)];
+                  const key = `${roundedPos[0]},${roundedPos[1]},${roundedPos[2]}`;
                   const voxel = state.voxelMap.get(key);
 
                   if (voxel) {
-                      undoStackRef.current.push({ type: 'remove', position: [pos.x, pos.y, pos.z], color: voxel.color, size: voxel.size, glow: voxel.glow, voxelId: voxel.id });
+                      undoStackRef.current.push({ type: 'remove', position: roundedPos as [number, number, number], color: voxel.color, size: voxel.size, glow: voxel.glow, voxelId: voxel.id });
                       redoStackRef.current = [];
                       onRemoveVoxel(voxel.id);
                       if (navigator.vibrate) navigator.vibrate(200); 
