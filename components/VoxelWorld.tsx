@@ -2021,7 +2021,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         
         // Camera always faces player's back - positioned 180 degrees behind player's rotation
         const playerRotationY = state.player.mesh.rotation.y;
-        const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
+        let targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
+        
+        // Normalize target angle to -π to π range
+        while (targetCameraAngle > Math.PI) targetCameraAngle -= 2 * Math.PI;
+        while (targetCameraAngle < -Math.PI) targetCameraAngle += 2 * Math.PI;
         
         // Smoothly interpolate camera angle to stay behind player
         let angleDiff = targetCameraAngle - orbit_angle.y;
