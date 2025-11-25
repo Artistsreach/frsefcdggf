@@ -2023,15 +2023,10 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         const playerRotationY = state.player.mesh.rotation.y;
         const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
         
-        // Normalize current orbit angle to -π to π range for consistency
-        let currentAngle = orbit_angle.y;
-        while (currentAngle > Math.PI) currentAngle -= 2 * Math.PI;
-        while (currentAngle < -Math.PI) currentAngle += 2 * Math.PI;
-        orbit_angle.y = currentAngle;
-        
-        // Smoothly interpolate camera angle to stay behind player using atan2 for robust normalization
+        // Smoothly interpolate using shortest circular path
+        const lerpFactor = Math.min(delta * 5, 1);
         const angleDiff = Math.atan2(Math.sin(targetCameraAngle - orbit_angle.y), Math.cos(targetCameraAngle - orbit_angle.y));
-        orbit_angle.y += angleDiff * Math.min(delta * 5, 1);
+        orbit_angle.y += angleDiff * lerpFactor;
         
         const orbitPos = new THREE.Vector3(Math.sin(orbit_angle.y) * Math.cos(orbit_angle.x), Math.sin(orbit_angle.x), Math.cos(orbit_angle.y) * Math.cos(orbit_angle.x));
         const cameraPos = playerPos.clone().add(orbitPos.multiplyScalar(zoom));
