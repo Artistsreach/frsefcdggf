@@ -3603,7 +3603,28 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     };
     for (let i = 0; i < roadX.length - 1; i++) { for (let j = 0; j < roadZ.length - 1; j++) { pathPoints.push(createCWPath(roadX[i], roadZ[j], roadX[i+1], roadZ[j+1])); pathPoints.push(createCCWPath(roadX[i], roadZ[j], roadX[i+1], roadZ[j+1])); } }
     pathPoints.push(createCWPath(roadX[0], roadZ[0], roadX[roadX.length-1], roadZ[roadZ.length-1])); pathPoints.push(createCCWPath(roadX[0], roadZ[0], roadX[roadX.length-1], roadZ[roadZ.length-1]));
-    const curves = pathPoints.map(points => new THREE.CatmullRomCurve3(points, true, 'centripetal'));
+    const allCurves = pathPoints.map(points => new THREE.CatmullRomCurve3(points, true, 'centripetal'));
+    
+    // Filter out paths that pass through restricted areas
+    const isPathRestricted = (curve: THREE.CatmullRomCurve3): boolean => {
+        // Check 20 sample points along the path
+        for (let t = 0; t <= 1; t += 0.05) {
+            const point = curve.getPointAt(t);
+            
+            // Restricted zone 1: Player spawn area (center of map)
+            if (Math.abs(point.x) < 25 && Math.abs(point.z) < 25) return true;
+            
+            // Restricted zone 2: Pizza shop area (around x=-8, z=16)
+            if (point.x > -32 && point.x < 16 && point.z > -8 && point.z < 40) return true;
+            
+            // Restricted zone 3: Auto shop area (lower left, around x=-60, z=20)
+            if (point.x < -30 && point.z > 0 && point.z < 60) return true;
+        }
+        return false;
+    };
+    
+    const curves = allCurves.filter(curve => !isPathRestricted(curve));
+    
     for (let i = 0; i < NUM_CARS; i++) {
         const color = CAR_COLORS[i % CAR_COLORS.length]; const carMesh = createCar(color);
         carMesh.traverse(child => { if (child instanceof THREE.Mesh) child.castShadow = true; });
