@@ -365,8 +365,8 @@ function generateWorldData(theme: WorldTheme) {
       for (let x = 0; x < width; x++) { for (let z = 0; z < depth; z++) { const tileColor = (x + z) % 2 === 0 ? TILE_A_COLOR : TILE_B_COLOR; setBlock([ox + x, oy, oz + z], tileColor); } }
       const doorZStart = Math.floor(depth / 2) - 2; const doorWidth = 4; const doorHeight = 5; const windowYStart = 2; const windowYEnd = 6;
       for (let y = 1; y <= height; y++) { for (let x = 0; x < width; x++) { for (let z = 0; z < depth; z++) { if (x === 0 || x === width - 1 || z === 0 || z === depth - 1) { const isDoorArea = x === 0 && z >= doorZStart && z < doorZStart + doorWidth && y <= doorHeight; const isFrontWindow = x === 0 && y >= windowYStart && y <= windowYEnd && ((z >= 3 && z < doorZStart - 2) || (z >= doorZStart + doorWidth + 2 && z < depth - 3)); const isSideWindow = z === 0 && y >= windowYStart && y <= windowYEnd && ((x >= 4 && x <= 8) || (x >= width - 9 && x <= width - 5)); if (!isDoorArea && !isFrontWindow && !isSideWindow) { setBlock([ox + x, oy + y, oz + z], WALL_COLOR); } } } } }
-      for (let y = 1; y <= doorHeight + 1; y++) { setBlock([ox, oy + y, oz + doorZStart - 1], DOOR_FRAME_COLOR); setBlock([ox, oy + y, oz + doorZStart + doorWidth], DOOR_FRAME_COLOR); }
-      for (let z = doorZStart; z < doorZStart + doorWidth; z++) { setBlock([ox, oy + doorHeight + 1, oz + z], DOOR_FRAME_COLOR); }
+      for (let y = 1; y <= doorHeight + 1; y++) { setBlock([ox, oy + y, oz + doorZStart - 1], theme.sidewalkColor); setBlock([ox, oy + y, oz + doorZStart + doorWidth], theme.sidewalkColor); }
+      for (let z = doorZStart; z < doorZStart + doorWidth; z++) { setBlock([ox, oy + doorHeight + 1, oz + z], theme.sidewalkColor); }
       for (let z of [1, depth - 2]) { setBlock([ox - 1, oy, z], theme.sidewalkColor); }
       for (let x = -1; x <= width; x++) { for (let z = -1; z <= depth; z++) { setBlock([ox + x, oy + height + 1, oz + z], ROOF_COLOR); } }
       for(let x=10; x<16; x++) for(let z=10; z<16; z++) for(let y=1; y<=3; y++) { setBlock([ox + x, oy + height + 1 + y, oz + z], '#555555'); }
