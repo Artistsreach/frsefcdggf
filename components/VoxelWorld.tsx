@@ -3582,8 +3582,62 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     };
     animate();
 
+    // Camera drag event listeners
+    const handleCameraDragStart = (e: PointerEvent) => {
+      state.cameraDrag.isDragging = true;
+      state.cameraDrag.startX = e.clientX;
+      state.cameraDrag.startY = e.clientY;
+      state.cameraDrag.lastX = e.clientX;
+      state.cameraDrag.lastY = e.clientY;
+      state.cameraDrag.lastDragTime = Date.now();
+      if (state.cameraDrag.returnTimeout) clearTimeout(state.cameraDrag.returnTimeout);
+    };
+
+    const handleCameraDragMove = (e: PointerEvent) => {
+      if (!state.cameraDrag.isDragging) return;
+      
+      const deltaX = e.clientX - state.cameraDrag.lastX;
+      const deltaY = e.clientY - state.cameraDrag.lastY;
+      
+      state.cameraDrag.lastX = e.clientX;
+      state.cameraDrag.lastY = e.clientY;
+      state.cameraDrag.lastDragTime = Date.now();
+      
+      // Apply drag to camera orbit angles (horizontal = yaw, vertical = pitch)
+      const sensitivity = 0.005;
+      state.orbit_angle.y -= deltaX * sensitivity;
+      state.orbit_angle.x -= deltaY * sensitivity;
+      
+      // Constrain vertical angle to prevent over-rotation
+      state.orbit_angle.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, state.orbit_angle.x));
+    };
+
+    const handleCameraDragEnd = () => {
+      if (!state.cameraDrag.isDragging) return;
+      state.cameraDrag.isDragging = false;
+      
+      // Set auto-return timer: smooth return to player's back after 0.5 seconds of no drag
+      if (state.cameraDrag.returnTimeout) clearTimeout(state.cameraDrag.returnTimeout);
+      state.cameraDrag.returnTimeout = setTimeout(() => {
+        state.cameraDrag.returnTimeout = null;
+      }, 500);
+    };
+
+    const domElement = state.renderer.domElement;
+    domElement.addEventListener('pointerdown', handleCameraDragStart);
+    domElement.addEventListener('pointermove', handleCameraDragMove);
+    domElement.addEventListener('pointerup', handleCameraDragEnd);
+    domElement.addEventListener('pointercancel', handleCameraDragEnd);
+    domElement.addEventListener('pointerleave', handleCameraDragEnd);
+
     return () => {
         if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        if (state.cameraDrag.returnTimeout) clearTimeout(state.cameraDrag.returnTimeout);
+        domElement.removeEventListener('pointerdown', handleCameraDragStart);
+        domElement.removeEventListener('pointermove', handleCameraDragMove);
+        domElement.removeEventListener('pointerup', handleCameraDragEnd);
+        domElement.removeEventListener('pointercancel', handleCameraDragEnd);
+        domElement.removeEventListener('pointerleave', handleCameraDragEnd);
         if (rendererRef.current && mountRef.current) {
             mountRef.current.removeChild(rendererRef.current.domElement);
         }
