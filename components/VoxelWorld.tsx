@@ -917,6 +917,15 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     // Camera
     cameraTarget: new THREE.Vector3(),
     orbit_angle: { x: 0.2, y: 0, },
+    cameraDrag: {
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        lastDragTime: 0,
+        returnTimeout: null as ReturnType<typeof setTimeout> | null,
+    },
     touchState: {
         activePointers: new Map<number, { x: number, y: number }>(),
         lastPinchDist: null as number | null,
@@ -2019,16 +2028,21 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     } else {
         const playerPos = state.player.mesh.position; const zoom = 6;
         
-        // Camera always faces player's back - positioned 180 degrees behind player's rotation
         // Extract Y rotation from quaternion (player uses quaternions, not rotation.y)
         const euler = new THREE.Euler().setFromQuaternion(state.player.mesh.quaternion, 'YXZ');
         const playerRotationY = euler.y;
         const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
         
-        // Smoothly interpolate using shortest circular path
-        const lerpFactor = Math.min(delta * 5, 1);
-        const angleDiff = Math.atan2(Math.sin(targetCameraAngle - orbit_angle.y), Math.cos(targetCameraAngle - orbit_angle.y));
-        orbit_angle.y += angleDiff * lerpFactor;
+        // If dragging, skip auto-follow and use drag rotation instead
+        if (!state.cameraDrag.isDragging) {
+            // Auto-follow: smoothly interpolate to face player's back using shortest circular path
+            const lerpFactor = Math.min(delta * 5, 1);
+            const angleDiff = Math.atan2(Math.sin(targetCameraAngle - orbit_angle.y), Math.cos(targetCameraAngle - orbit_angle.y));
+            orbit_angle.y += angleDiff * lerpFactor;
+            
+            // Constrain vertical angle to prevent flipping
+            orbit_angle.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, orbit_angle.x));
+        }
         
         const orbitPos = new THREE.Vector3(Math.sin(orbit_angle.y) * Math.cos(orbit_angle.x), Math.sin(orbit_angle.x), Math.cos(orbit_angle.y) * Math.cos(orbit_angle.x));
         const cameraPos = playerPos.clone().add(orbitPos.multiplyScalar(zoom));
