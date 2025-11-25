@@ -2709,6 +2709,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
   const updateCars = (delta: number) => {
     const INTERSECTION_RADIUS = 20; const YIELD_DISTANCE = 25; const SAFE_TIME_HEADWAY = 1.6; const MIN_DISTANCE = 6.0; const MAX_ACCEL = 1.5; const MAX_DECEL = 3.0; const JAM_THRESHOLD = 3.0; const JAM_NUDGE_FACTOR = 0.5;
+    const CAR_RADIUS = 2.5; const COLLISION_REPULSION = 15.0; const LATERAL_DAMPING = 0.95;
     
     // Spring physics for rebounding
     const SPRING_K = 5.0; // Strength of return to path
@@ -2759,6 +2760,27 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         car.speed = Math.max(0, Math.min(car.desiredSpeed, car.speed));
         if (car.speed < 0.5) car.timeStationary += delta; else car.timeStationary = 0;
         
+        // Collision avoidance: Check all other cars and apply repulsion forces
+        let repulsionForce = new THREE.Vector3();
+        state.cars.forEach((otherCar, otherIndex) => {
+            if (index === otherIndex) return;
+            const toOther = new THREE.Vector3().subVectors(otherCar.mesh.position, car.mesh.position);
+            const distance = toOther.length();
+            const minSeparation = CAR_RADIUS * 2.2; // Add safety margin
+            
+            if (distance < minSeparation && distance > 0.1) {
+                toOther.normalize();
+                // Repulsion pushes away laterally (not along forward direction)
+                const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(car.mesh.quaternion);
+                const repulsion = toOther.clone().multiplyScalar(-1); // Push away from other car
+                // Project repulsion onto lateral plane (perpendicular to forward)
+                const lateralComponent = repulsion.clone().sub(forwardDir.clone().multiplyScalar(forwardDir.dot(repulsion)));
+                lateralComponent.normalize();
+                const repulsionMagnitude = (minSeparation - distance) * COLLISION_REPULSION;
+                repulsionForce.add(lateralComponent.multiplyScalar(repulsionMagnitude));
+            }
+        });
+        
         const pathLength = car.path.getLength();
         if (pathLength > 0) {
             const progressDelta = (car.speed / pathLength) * delta;
@@ -2768,10 +2790,16 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             const springForce = car.offset.clone().multiplyScalar(-SPRING_K);
             // a = F (mass=1), vel += a * dt
             car.displacementVelocity.add(springForce.multiplyScalar(delta));
-            // Apply damping
-            car.displacementVelocity.multiplyScalar(DAMPING);
+            // Add collision repulsion force
+            car.displacementVelocity.add(repulsionForce.multiplyScalar(delta));
+            // Apply lateral damping to reduce oscillation
+            car.displacementVelocity.multiplyScalar(LATERAL_DAMPING);
             // Apply velocity to offset
             car.offset.add(car.displacementVelocity.clone().multiplyScalar(delta));
+            // Limit lateral offset to prevent cars from straying too far from path
+            if (car.offset.length() > 4.0) {
+                car.offset.normalize().multiplyScalar(4.0);
+            }
 
             const pathPosition = car.path.getPointAt(car.progress);
             const newPosition = pathPosition.clone().add(car.offset);
