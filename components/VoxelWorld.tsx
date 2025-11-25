@@ -1084,6 +1084,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                   const voxel = state.voxelMap.get(key);
 
                   if (voxel) {
+                      undoStackRef.current.push({ type: 'remove', position: [pos.x, pos.y, pos.z], color: voxel.color, size: voxel.size, glow: voxel.glow, voxelId: voxel.id });
+                      redoStackRef.current = [];
                       onRemoveVoxel(voxel.id);
                       if (navigator.vibrate) navigator.vibrate(200); 
                   }
@@ -2454,22 +2456,29 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     if (action.type === 'add') {
         // Handle both single voxel and multiple voxels from drag
         if (action.voxels) {
-            console.log('Undo: removing', action.voxels.length, 'dragged voxels');
+            console.log('Undo: removing', action.voxels.length, 'dragged/batch voxels');
             action.voxels.forEach((v: any) => {
                 // Lookup voxel by position
                 const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
                 if (voxelData) {
                     console.log('Undo: removing voxel at', v.position, 'id:', voxelData.id);
                     onRemoveVoxel(voxelData.id);
+                } else {
+                    console.warn('Undo: voxel not found at', v.position);
                 }
             });
         } else {
-            // Single voxel from build button
+            // Single voxel from build button or tap
             console.log('Undo: removing single voxel at', action.position);
             const voxelData = state.voxelMap.get(`${action.position[0]},${action.position[1]},${action.position[2]}`);
-            if (voxelData) onRemoveVoxel(voxelData.id);
+            if (voxelData) {
+                onRemoveVoxel(voxelData.id);
+            } else {
+                console.warn('Undo: single voxel not found at', action.position);
+            }
         }
     } else if (action.type === 'remove') {
+        console.log('Undo: restoring voxel at', action.position);
         onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
     }
     
