@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 
 interface MainMenuProps {
   onCustomize: () => void;
+  showCars: boolean;
+  onToggleCars: (show: boolean) => void;
+  showPedestrians: boolean;
+  onTogglePedestrians: (show: boolean) => void;
 }
 
-const MainMenu: React.FC<MainMenuProps> = ({ onCustomize }) => {
+const MainMenu: React.FC<MainMenuProps> = ({ onCustomize, showCars, onToggleCars, showPedestrians, onTogglePedestrians }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -18,7 +22,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onCustomize }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-12 left-0 bg-gray-900/95 backdrop-blur-md border border-white/20 rounded-lg shadow-2xl min-w-48">
+        <div className="absolute top-12 left-0 bg-gray-900/95 backdrop-blur-md border border-white/20 rounded-lg shadow-2xl min-w-56">
           <button
             onClick={() => {
               onCustomize();
@@ -27,6 +31,24 @@ const MainMenu: React.FC<MainMenuProps> = ({ onCustomize }) => {
             className="w-full text-left px-4 py-3 text-white hover:bg-blue-600/50 transition-colors border-b border-white/10 font-semibold"
           >
             👤 Customize Character
+          </button>
+          <button
+            onClick={() => onToggleCars(!showCars)}
+            className="w-full text-left px-4 py-3 text-white hover:bg-blue-600/50 transition-colors border-b border-white/10 font-semibold flex items-center justify-between"
+          >
+            🚗 Cars
+            <span className={`text-sm ${showCars ? 'text-green-400' : 'text-gray-500'}`}>
+              {showCars ? 'ON' : 'OFF'}
+            </span>
+          </button>
+          <button
+            onClick={() => onTogglePedestrians(!showPedestrians)}
+            className="w-full text-left px-4 py-3 text-white hover:bg-blue-600/50 transition-colors font-semibold flex items-center justify-between"
+          >
+            🚶 Pedestrians
+            <span className={`text-sm ${showPedestrians ? 'text-green-400' : 'text-gray-500'}`}>
+              {showPedestrians ? 'ON' : 'OFF'}
+            </span>
           </button>
         </div>
       )}
