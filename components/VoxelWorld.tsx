@@ -815,7 +815,6 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
   const lastNearestNpcId = useRef<string | number | null>(null);
-  const lastMousePosRef = useRef<{ x: number, y: number } | null>(null);
   
   // Undo/Redo history - tracks build button and destroy button actions only
   const undoStackRef = useRef<Array<{ type: 'add' | 'remove', position?: [number, number, number], color?: string, size?: number, glow?: boolean, voxelId?: number }>>([]);
@@ -1081,36 +1080,18 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                   const matrix = new THREE.Matrix4();
                   state.instancedMesh.getMatrixAt(intersection.instanceId, matrix);
                   const pos = new THREE.Vector3().setFromMatrixPosition(matrix);
-                  // Round to integers to match how voxels are stored in the map
-                  const roundedX = Math.round(pos.x);
-                  const roundedY = Math.round(pos.y);
-                  const roundedZ = Math.round(pos.z);
-                  const key = `${roundedX},${roundedY},${roundedZ}`;
+                  const key = `${pos.x},${pos.y},${pos.z}`;
                   const voxel = state.voxelMap.get(key);
 
                   if (voxel) {
-                      undoStackRef.current.push({ type: 'remove', position: [roundedX, roundedY, roundedZ], color: voxel.color, size: voxel.size, glow: voxel.glow, voxelId: voxel.id });
+                      undoStackRef.current.push({ type: 'remove', position: [pos.x, pos.y, pos.z], color: voxel.color, size: voxel.size, glow: voxel.glow, voxelId: voxel.id });
                       redoStackRef.current = [];
                       onRemoveVoxel(voxel.id);
                       if (navigator.vibrate) navigator.vibrate(200); 
-                  } else {
-                      console.warn('Delete: voxel not found at', key, '(checked from pos:', pos.x, pos.y, pos.z, ')');
                   }
               }
           }
       }
-  };
-
-  const handleDestroyAtHighlighted = () => {
-      if (!lastMousePosRef.current) {
-          console.log('Delete: no mouse position tracked');
-          return;
-      }
-      handleDestroy(lastMousePosRef.current.x, lastMousePosRef.current.y);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -1162,9 +1143,6 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    // Always track mouse position for delete button
-    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-    
     if (!state.touchState.activePointers.has(e.pointerId)) return;
     const prev = state.touchState.activePointers.get(e.pointerId)!;
     const curr = { x: e.clientX, y: e.clientY };
@@ -2571,7 +2549,16 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         redoStackRef.current = [];
       }
     },
-    destroy: handleDestroyAtHighlighted,
+    destroy: () => { 
+      if (state.targetBlock) {
+        const voxelData = state.voxelMap.get(`${state.targetBlock.position.x},${state.targetBlock.position.y},${state.targetBlock.position.z}`);
+        if (voxelData) {
+          undoStackRef.current.push({ type: 'remove', position: [state.targetBlock.position.x, state.targetBlock.position.y, state.targetBlock.position.z], color: voxelData.color, size: voxelData.size, glow: voxelData.glow, voxelId: voxelData.id });
+          redoStackRef.current = [];
+          onRemoveVoxel(state.targetBlock.id);
+        }
+      }
+    },
     undo: performUndo,
     redo: performRedo,
     jump: () => { if (state.player.isGrounded && !isFreeCamera) state.player.velocity.y = 10; },
