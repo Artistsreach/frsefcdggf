@@ -993,7 +993,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         id: string,
         type: 'dog' | 'bird' | 'drone' | 'helicopter' | 'ball' | 'racecar' | 'generic',
         mesh: THREE.Group,
-        voxelIds: number[],
+        instanceIndices: number[],
         relativePositions: { x: number, y: number, z: number }[],
         animationState: {
             time: number,
@@ -1916,17 +1916,17 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 const bobOffset = Math.sin(time * 8) * 0.05;
                 
                 // Update all voxels using stored relative positions
-                obj.voxelIds.forEach((voxelId, index) => {
+                obj.instanceIndices.forEach((instanceIndex, index) => {
                     const relativePos = obj.relativePositions[index];
-                    if (relativePos) {
+                    if (relativePos !== undefined) {
                         const matrix = new THREE.Matrix4();
-                        state.instancedMesh.getMatrixAt(voxelId, matrix);
+                        state.instancedMesh.getMatrixAt(instanceIndex, matrix);
                         matrix.setPosition(
                             position.x + relativePos.x,
                             position.y + relativePos.y + bobOffset,
                             position.z + relativePos.z
                         );
-                        state.instancedMesh.setMatrixAt(voxelId, matrix);
+                        state.instancedMesh.setMatrixAt(instanceIndex, matrix);
                     }
                 });
                 state.instancedMesh.instanceMatrix.needsUpdate = true;
@@ -2698,9 +2698,14 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 color: v.color
             }));
             
-            // Add voxels and get their IDs
+            // Get current voxel count before adding
+            const instanceStartIndex = state.voxels.length;
+            
+            // Add voxels and get their data
             const addedVoxelData = onAddVoxels(voxelsToAdd);
-            const voxelIds = addedVoxelData.map(v => v.id);
+            
+            // Instance indices are sequential from where we started
+            const instanceIndices = Array.from({ length: addedVoxelData.length }, (_, i) => instanceStartIndex + i);
             
             // Create animated object mesh
             const objectGroup = new THREE.Group();
@@ -2758,12 +2763,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 id: `animated_${Date.now()}_${Math.random()}`,
                 type: objectType,
                 mesh: objectGroup,
-                voxelIds,
+                instanceIndices,
                 relativePositions,
                 animationState
             });
             
-            console.log(`Spawned animated ${objectType} with ${voxelIds.length} voxels at (${sx}, ${groundY + 1}, ${sz})`);
+            console.log(`Spawned animated ${objectType} with ${instanceIndices.length} voxels (instances ${instanceStartIndex}-${instanceStartIndex + instanceIndices.length - 1}) at (${sx}, ${groundY + 1}, ${sz})`);
         }
     } catch (e) {
         console.error("Error spawning object:", e);
