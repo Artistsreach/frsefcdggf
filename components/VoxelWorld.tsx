@@ -2618,7 +2618,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const spawnGenerativeObject = async (prompt: string) => {
-    if (!state.gemini.ai || !state.wizard.mesh) return;
+    console.log('spawnGenerativeObject called with prompt:', prompt);
+    console.log('state.gemini.ai:', !!state.gemini.ai, 'state.wizard.mesh:', !!state.wizard.mesh);
+    
+    if (!state.gemini.ai) { console.error('Gemini AI not initialized'); return; }
+    if (!state.wizard.mesh) { console.error('Wizard mesh not found'); return; }
     
     // Spawn 4 units in front of wizard
     const wizardPos = state.wizard.mesh.position;
@@ -2637,9 +2641,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         }
     }
     if (groundY === -Infinity) groundY = -1; // Default to ground level if not found
+    
+    console.log(`Spawning at position (${sx}, ${groundY + 1}, ${sz})`);
 
     // Detect animation type dynamically
     const animationType = detectAnimationType(prompt);
+    console.log('Detected animation type:', animationType);
 
     // Detect object type from prompt (legacy, for size hints)
     const lowerPrompt = prompt.toLowerCase();
@@ -2676,6 +2683,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             sizeHint = 'A race car should be about 2 blocks tall, 4-5 blocks long, and 2-3 blocks wide (life-size vehicle).';
         }
         
+        console.log('Requesting voxel generation from Gemini...');
         const response = await state.gemini.ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Generate a LIFE-SIZE voxel model for: "${prompt}".
@@ -2703,7 +2711,10 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             }
         });
 
+        console.log('Gemini response received, parsing...');
         const data = JSON.parse(response.text);
+        console.log('Parsed voxel data, count:', Array.isArray(data) ? data.length : 'NOT AN ARRAY');
+        
         if (Array.isArray(data)) {
             // Store relative positions before converting to world coordinates
             const relativePositions = data.map((v: any) => ({
@@ -2721,14 +2732,16 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 color: v.color
             }));
             
+            console.log('Adding voxels to scene, count:', voxelsToAdd.length);
             // Get current voxel count before adding
             const instanceStartIndex = state.voxels.length;
             
-            // Add voxels and get their data
-            const addedVoxelData = onAddVoxels(voxelsToAdd);
+            // Add voxels - onAddVoxels returns void, so we use the number of voxels we're adding
+            onAddVoxels(voxelsToAdd);
             
             // Instance indices are sequential from where we started
-            const instanceIndices = Array.from({ length: addedVoxelData.length }, (_, i) => instanceStartIndex + i);
+            const instanceIndices = Array.from({ length: voxelsToAdd.length }, (_, i) => instanceStartIndex + i);
+            console.log('Created instance indices:', instanceIndices.length, 'starting from index', instanceStartIndex);
             
             // Create animated object mesh
             const objectGroup = new THREE.Group();
