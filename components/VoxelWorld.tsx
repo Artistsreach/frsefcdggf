@@ -1080,14 +1080,20 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                   const matrix = new THREE.Matrix4();
                   state.instancedMesh.getMatrixAt(intersection.instanceId, matrix);
                   const pos = new THREE.Vector3().setFromMatrixPosition(matrix);
-                  const key = `${pos.x},${pos.y},${pos.z}`;
+                  // Round to integers to match how voxels are stored in the map
+                  const roundedX = Math.round(pos.x);
+                  const roundedY = Math.round(pos.y);
+                  const roundedZ = Math.round(pos.z);
+                  const key = `${roundedX},${roundedY},${roundedZ}`;
                   const voxel = state.voxelMap.get(key);
 
                   if (voxel) {
-                      undoStackRef.current.push({ type: 'remove', position: [pos.x, pos.y, pos.z], color: voxel.color, size: voxel.size, glow: voxel.glow, voxelId: voxel.id });
+                      undoStackRef.current.push({ type: 'remove', position: [roundedX, roundedY, roundedZ], color: voxel.color, size: voxel.size, glow: voxel.glow, voxelId: voxel.id });
                       redoStackRef.current = [];
                       onRemoveVoxel(voxel.id);
                       if (navigator.vibrate) navigator.vibrate(200); 
+                  } else {
+                      console.warn('Delete: voxel not found at', key, '(checked from pos:', pos.x, pos.y, pos.z, ')');
                   }
               }
           }
