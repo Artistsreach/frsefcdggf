@@ -2025,14 +2025,14 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     } else {
         const playerPos = state.player.mesh.position; const zoom = 6;
         
-        // If manual camera control is active, keep the camera at its current angle
+        // Camera always faces player's back - positioned 180 degrees behind player's rotation
+        // Extract Y rotation from quaternion (player uses quaternions, not rotation.y)
+        const euler = new THREE.Euler().setFromQuaternion(state.player.mesh.quaternion, 'YXZ');
+        const playerRotationY = euler.y;
+        const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
+        
+        // Only auto-rotate if manual camera control is NOT active
         if (!state.manualCameraControl) {
-            // Camera always faces player's back - positioned 180 degrees behind player's rotation
-            // Extract Y rotation from quaternion (player uses quaternions, not rotation.y)
-            const euler = new THREE.Euler().setFromQuaternion(state.player.mesh.quaternion, 'YXZ');
-            const playerRotationY = euler.y;
-            const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
-            
             // Smoothly interpolate using shortest circular path
             const lerpFactor = Math.min(delta * 5, 1);
             const angleDiff = Math.atan2(Math.sin(targetCameraAngle - orbit_angle.y), Math.cos(targetCameraAngle - orbit_angle.y));
@@ -2042,8 +2042,15 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         const orbitPos = new THREE.Vector3(Math.sin(orbit_angle.y) * Math.cos(orbit_angle.x), Math.sin(orbit_angle.x), Math.cos(orbit_angle.y) * Math.cos(orbit_angle.x));
         const cameraPos = playerPos.clone().add(orbitPos.multiplyScalar(zoom));
         const targetPos = playerPos.clone().add(new THREE.Vector3(0, 1.5, 0));
-        camera.position.lerp(cameraPos, delta * 10);
-        target.lerp(targetPos, delta * 10);
+        
+        // When in manual control, set camera directly instead of lerping (prevents snapping back)
+        if (state.manualCameraControl) {
+            camera.position.copy(cameraPos);
+            target.copy(targetPos);
+        } else {
+            camera.position.lerp(cameraPos, delta * 10);
+            target.lerp(targetPos, delta * 10);
+        }
         camera.lookAt(target);
     }
   };
