@@ -829,11 +829,11 @@ const App: React.FC = () => {
         setSelectedSize={setSelectedSize}
         isGlowEnabled={isGlowEnabled}
         setIsGlowEnabled={setIsGlowEnabled}
-        onBuild={() => voxelWorldRef.current?.build()}
-        onDestroy={() => voxelWorldRef.current?.destroy()}
-        onJump={() => voxelWorldRef.current?.jump()}
-        onUndo={() => voxelWorldRef.current?.undo()}
-        onRedo={() => voxelWorldRef.current?.redo()}
+        onBuild={() => { console.log('Build clicked'); voxelWorldRef.current?.build(); }}
+        onDestroy={() => { console.log('Destroy clicked'); voxelWorldRef.current?.destroy(); }}
+        onJump={() => { console.log('Jump clicked'); voxelWorldRef.current?.jump(); }}
+        onUndo={() => { console.log('Undo clicked, ref:', voxelWorldRef.current, 'undo method exists:', typeof voxelWorldRef.current?.undo); voxelWorldRef.current?.undo(); }}
+        onRedo={() => { console.log('Redo clicked, ref:', voxelWorldRef.current, 'redo method exists:', typeof voxelWorldRef.current?.redo); voxelWorldRef.current?.redo(); }}
         isFreeCamera={isFreeCamera}
         onToggleFreeCamera={() => setIsFreeCamera(!isFreeCamera)}
         isNearNPC={!!nearbyNpc}
