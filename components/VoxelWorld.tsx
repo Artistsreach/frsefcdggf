@@ -1163,30 +1163,33 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         if (isFreeCameraRef.current) {
             // Free camera: 1 finger draws voxels along a line
             if (state.touchState.lastDrawPoint && rendererRef.current) {
-                // Sample points along the line and place blocks on top of existing ones or ground
-                const steps = 5;
-                for (let i = 1; i <= steps; i++) {
-                    const t = i / steps;
-                    const prevX = state.touchState.lastDrawPoint.x;
-                    const prevY = state.touchState.lastDrawPoint.y;
-                    const screenX = prevX + (curr.x - prevX) * t;
-                    const screenY = prevY + (curr.y - prevY) * t;
-                    
-                    const placePosition = getPlacementPositionFromScreenCoords(screenX, screenY);
-                    if (placePosition) {
-                        onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
-                        // Track position for later voxel ID lookup
-                        const intPosition: [number, number, number] = [
-                            Math.round(placePosition[0]),
-                            Math.round(placePosition[1]),
-                            Math.round(placePosition[2])
-                        ];
-                        currentDragVoxelsRef.current.push({ position: intPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                // Only sample if movement is significant (throttle)
+                const moveDist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                if (moveDist > 8) {
+                    // Sample fewer points along the line for better performance
+                    const steps = 2;
+                    for (let i = 1; i <= steps; i++) {
+                        const t = i / steps;
+                        const prevX = state.touchState.lastDrawPoint.x;
+                        const prevY = state.touchState.lastDrawPoint.y;
+                        const screenX = prevX + (curr.x - prevX) * t;
+                        const screenY = prevY + (curr.y - prevY) * t;
+                        
+                        const placePosition = getPlacementPositionFromScreenCoords(screenX, screenY);
+                        if (placePosition) {
+                            onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
+                            // Track position for later voxel ID lookup
+                            const intPosition: [number, number, number] = [
+                                Math.round(placePosition[0]),
+                                Math.round(placePosition[1]),
+                                Math.round(placePosition[2])
+                            ];
+                            currentDragVoxelsRef.current.push({ position: intPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                        }
                     }
+                    state.touchState.lastDrawPoint = { x: curr.x, y: curr.y };
                 }
             }
-            
-            state.touchState.lastDrawPoint = { x: curr.x, y: curr.y };
         } else {
             // Regular camera: 1 finger orbits
             const SENSITIVITY = 0.005;
