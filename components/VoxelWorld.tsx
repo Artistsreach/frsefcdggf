@@ -806,6 +806,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   const logicRef = useRef<any>({});
   
   const isFreeCameraRef = useRef(isFreeCamera);
+  const showCarsRef = useRef(showCars);
+  const showPedestriansRef = useRef(showPedestrians);
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
   const lastNearestNpcId = useRef<string | number | null>(null);
@@ -1627,6 +1629,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const updatePedestrians = (delta: number) => {
+    // Update visibility for all pedestrians
+    state.pedestrians.forEach(ped => { ped.mesh.visible = showPedestriansRef.current; });
+    
     // Looser spring physics for "ragdoll" effect when hit
     const SPRING_K = 1.5;
     const DAMPING = 0.95;
@@ -2087,6 +2092,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const updateDrivableCars = (delta: number) => {
+    // Update visibility for all drivable cars
+    state.drivableCars.forEach(car => { car.mesh.visible = showCarsRef.current; });
     state.drivableCars.forEach(car => {
         // Physics for all drivable cars, including the one the player is driving
         car.velocity.multiplyScalar(1 - 1.0 * delta); // Reduced drag from 3 to 1
@@ -2183,8 +2190,10 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
   useEffect(() => {
     isFreeCameraRef.current = isFreeCamera;
+    showCarsRef.current = showCars;
+    showPedestriansRef.current = showPedestrians;
     if (state.gridHelper) state.gridHelper.visible = isFreeCamera;
-  }, [isFreeCamera, state.gridHelper]);
+  }, [isFreeCamera, showCars, showPedestrians, state.gridHelper]);
 
   const prevIsFreeCamera = useRef(isFreeCamera);
   useEffect(() => {
@@ -3566,8 +3575,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
       if (logic.updateWizard) logic.updateWizard(delta);
       if (logic.updateCustomNPCs) logic.updateCustomNPCs(delta);
       if (logic.updateCars) logic.updateCars(delta);
-      if (logic.updateDrivableCars) logic.updateDrivableCars(delta);
-      if (logic.updatePedestrians) logic.updatePedestrians(delta);
+      if (logic.updateDrivableCars && showCars) logic.updateDrivableCars(delta);
+      if (logic.updatePedestrians && showPedestrians) logic.updatePedestrians(delta);
       if (logic.updateConstructionWorkers) logic.updateConstructionWorkers(delta);
       if (logic.updateTrain) logic.updateTrain(delta);
       if (logic.updateCarCollisions) logic.updateCarCollisions();
