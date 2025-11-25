@@ -170,14 +170,6 @@ function generateWorldData(theme: WorldTheme) {
     }
   }
 
-  // Pass 2.2: Spawn Plaza (grey road area around spawn point)
-  const spawnPlazaSize = 30;
-  for (let x = -spawnPlazaSize; x <= spawnPlazaSize; x++) {
-    for (let z = -spawnPlazaSize; z <= spawnPlazaSize; z++) {
-      setBlock([x, GROUND_LEVEL, z], ROAD_COLOR);
-    }
-  }
-
   // Pass 2.5: Green Plots / Lawns
   const plotMargin = CORRIDOR_HALF_WIDTH + 1;
   fillBlockWithGrass(roadXPositions[0] + plotMargin, roadXPositions[1] - plotMargin, roadZPositions[0] + plotMargin, roadZPositions[1] - plotMargin);
