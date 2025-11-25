@@ -1181,11 +1181,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                         snapToGrid(pos.z, selectedSize)
                     ];
                     onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
-                    // Immediately capture the voxel ID after placement
-                    const voxelData = state.voxelMap.get(`${placePosition[0]},${placePosition[1]},${placePosition[2]}`);
-                    if (voxelData) {
-                        currentDragVoxelsRef.current.push({ voxelId: voxelData.id, position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
-                    }
+                    // Always track the voxel for undo, store position and properties for fallback
+                    currentDragVoxelsRef.current.push({ position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
                 }
             }
             
@@ -2467,10 +2464,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         if (action.voxels) {
             console.log('Undo: removing', action.voxels.length, 'dragged voxels');
             action.voxels.forEach((v: any) => {
-                // Use stored voxel ID if available (drag voxels), otherwise lookup by position (tap/button)
-                const voxelId = v.voxelId || state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`)?.id;
-                console.log('Undo: removing voxel id', voxelId);
-                if (voxelId) onRemoveVoxel(voxelId);
+                // Lookup voxel by position
+                const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+                if (voxelData) {
+                    console.log('Undo: removing voxel at', v.position, 'id:', voxelData.id);
+                    onRemoveVoxel(voxelData.id);
+                }
             });
         } else {
             // Single voxel from build button
