@@ -1277,6 +1277,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
         redoStackRef.current = [];
         currentDragVoxelsRef.current = [];
+        console.log('Drag ended, added to undo stack. Stack length now:', undoStackRef.current.length);
      }
      
      if (state.touchState.activePointers.size < 2) {
@@ -2445,46 +2446,60 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const performUndo = () => {
-    const action = undoStackRef.current.pop();
-    console.log('Undo called, stack length:', undoStackRef.current.length + 1, 'action:', action);
-    if (!action) {
-      console.log('No action to undo');
+    console.log('Undo called, undo stack length:', undoStackRef.current.length);
+    if (undoStackRef.current.length === 0) {
+      console.log('No actions to undo');
       return;
     }
     
+    const action = undoStackRef.current.pop();
+    console.log('Popped action:', action);
+    
+    if (!action) return;
+    
     if (action.type === 'add') {
-        console.log('Undoing add, removing voxels:', action.voxels);
+        console.log('Undoing add of', action.voxels.length, 'voxels');
         action.voxels.forEach(v => {
             const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
-            console.log('Looking up voxel at', v.position, 'found:', voxelData?.id);
-            if (voxelData) onRemoveVoxel(voxelData.id);
+            if (voxelData) {
+                console.log('Removing voxel at', v.position);
+                onRemoveVoxel(voxelData.id);
+            }
         });
     } else if (action.type === 'remove') {
-        console.log('Undoing remove, restoring voxels:', action.voxels);
+        console.log('Undoing remove of', action.voxels.length, 'voxels');
         onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
     }
+    
     redoStackRef.current.push(action);
   };
 
   const performRedo = () => {
-    const action = redoStackRef.current.pop();
-    console.log('Redo called, stack length:', redoStackRef.current.length + 1, 'action:', action);
-    if (!action) {
-      console.log('No action to redo');
+    console.log('Redo called, redo stack length:', redoStackRef.current.length);
+    if (redoStackRef.current.length === 0) {
+      console.log('No actions to redo');
       return;
     }
     
+    const action = redoStackRef.current.pop();
+    console.log('Popped action:', action);
+    
+    if (!action) return;
+    
     if (action.type === 'add') {
-        console.log('Redoing add, restoring voxels:', action.voxels);
+        console.log('Redoing add of', action.voxels.length, 'voxels');
         onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
     } else if (action.type === 'remove') {
-        console.log('Redoing remove, removing voxels:', action.voxels);
+        console.log('Redoing remove of', action.voxels.length, 'voxels');
         action.voxels.forEach(v => {
             const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
-            console.log('Looking up voxel at', v.position, 'found:', voxelData?.id);
-            if (voxelData) onRemoveVoxel(voxelData.id);
+            if (voxelData) {
+                console.log('Removing voxel at', v.position);
+                onRemoveVoxel(voxelData.id);
+            }
         });
     }
+    
     undoStackRef.current.push(action);
   };
 
@@ -2501,6 +2516,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         onAddVoxel(newPosition, selectedColor, selectedSize, state.isGlowEnabled);
         undoStackRef.current.push({ type: 'add', voxels: [{ position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled }] });
         redoStackRef.current = [];
+        console.log('Build button clicked, undo stack length:', undoStackRef.current.length);
       }
     },
     destroy: () => { 
@@ -2510,6 +2526,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
           undoStackRef.current.push({ type: 'remove', voxels: [{ position: [state.targetBlock.position.x, state.targetBlock.position.y, state.targetBlock.position.z], color: '#ffffff', glow: false }] });
           redoStackRef.current = [];
           onRemoveVoxel(state.targetBlock.id);
+          console.log('Destroy clicked, undo stack length:', undoStackRef.current.length);
         }
       }
     },
