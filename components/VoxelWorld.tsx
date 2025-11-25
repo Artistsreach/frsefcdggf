@@ -1627,6 +1627,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const updatePedestrians = (delta: number) => {
+    if (!showPedestrians) return;
     // Looser spring physics for "ragdoll" effect when hit
     const SPRING_K = 1.5;
     const DAMPING = 0.95;
@@ -2208,6 +2209,15 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
       state.isGlowEnabled = isGlowEnabled;
   }, [isGlowEnabled]);
 
+  useEffect(() => {
+      state.pedestrians.forEach(ped => { ped.mesh.visible = showPedestrians; });
+  }, [showPedestrians]);
+
+  useEffect(() => {
+      state.cars.forEach(car => { car.mesh.visible = showCars; });
+      state.drivableCars.forEach(car => { car.mesh.visible = showCars; });
+  }, [showCars]);
+
   const detectGreenAreaBounds = (centerX: number, centerZ: number): { minX: number, maxX: number, minZ: number, maxZ: number, valid: boolean } => {
     const groundY = -1;
     const maxPlotWidth = 100;
@@ -2635,6 +2645,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         return Math.max(-MAX_DECEL, Math.min(MAX_ACCEL, acceleration));
     });
 
+    if (!showCars) return;
+    
     state.cars.forEach((car, index) => {
         const acceleration = carAccelerations[index];
         car.speed += acceleration * delta;
