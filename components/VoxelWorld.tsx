@@ -989,6 +989,21 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     },
     pizzaCounterSpots: [] as THREE.Vector3[],
     placedItems: [] as { id: string, mesh: THREE.Group, type: string }[],
+    animatedObjects: [] as {
+        id: string,
+        type: 'dog' | 'bird' | 'drone' | 'helicopter' | 'ball' | 'racecar' | 'generic',
+        mesh: THREE.Group,
+        voxelIds: number[],
+        animationState: {
+            time: number,
+            path?: THREE.CatmullRomCurve3,
+            progress?: number,
+            speed?: number,
+            velocity?: THREE.Vector3,
+            rotation?: THREE.Euler,
+            bouncePhase?: number,
+        }
+    }[],
     
     gemini: {
         ai: null as GoogleGenAI | null,
@@ -2420,6 +2435,17 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     }
     if (groundY === -Infinity) groundY = -1; // Default to ground level if not found
 
+    // Detect object type from prompt
+    const lowerPrompt = prompt.toLowerCase();
+    let objectType: 'dog' | 'bird' | 'drone' | 'helicopter' | 'ball' | 'racecar' | 'generic' = 'generic';
+    
+    if (lowerPrompt.includes('dog') || lowerPrompt.includes('puppy')) objectType = 'dog';
+    else if (lowerPrompt.includes('bird') || lowerPrompt.includes('eagle') || lowerPrompt.includes('hawk') || lowerPrompt.includes('parrot')) objectType = 'bird';
+    else if (lowerPrompt.includes('drone')) objectType = 'drone';
+    else if (lowerPrompt.includes('helicopter') || lowerPrompt.includes('chopper')) objectType = 'helicopter';
+    else if (lowerPrompt.includes('ball') || lowerPrompt.includes('sphere')) objectType = 'ball';
+    else if (lowerPrompt.includes('race') || lowerPrompt.includes('racecar') || lowerPrompt.includes('sports car')) objectType = 'racecar';
+
     try {
         const response = await state.gemini.ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -2456,7 +2482,72 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 ] as [number, number, number],
                 color: v.color
             }));
-            onAddVoxels(voxelsToAdd);
+            
+            // Add voxels and get their IDs
+            const addedVoxelData = onAddVoxels(voxelsToAdd);
+            const voxelIds = addedVoxelData.map(v => v.id);
+            
+            // Create animated object mesh
+            const objectGroup = new THREE.Group();
+            objectGroup.position.set(sx, groundY + 1, sz);
+            state.scene.add(objectGroup);
+            
+            // Create animation state based on type
+            const animationState: any = { time: 0 };
+            
+            if (objectType === 'dog' || objectType === 'racecar') {
+                // Create a random path around the spawn area
+                const pathPoints: THREE.Vector3[] = [];
+                const radius = 8;
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    pathPoints.push(new THREE.Vector3(
+                        sx + Math.cos(angle) * radius,
+                        groundY + 1,
+                        sz + Math.sin(angle) * radius
+                    ));
+                }
+                animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
+                animationState.progress = 0;
+                animationState.speed = objectType === 'dog' ? 0.02 : 0.05;
+            } else if (objectType === 'bird' || objectType === 'drone') {
+                // Create a flying path
+                const pathPoints: THREE.Vector3[] = [];
+                const radius = 10;
+                const height = groundY + 8;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    pathPoints.push(new THREE.Vector3(
+                        sx + Math.cos(angle) * radius,
+                        height + Math.sin(angle * 2) * 2,
+                        sz + Math.sin(angle) * radius
+                    ));
+                }
+                animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
+                animationState.progress = 0;
+                animationState.speed = objectType === 'bird' ? 0.015 : 0.02;
+            } else if (objectType === 'helicopter') {
+                animationState.rotation = new THREE.Euler(0, 0, 0);
+                animationState.velocity = new THREE.Vector3(0, 0, 0);
+            } else if (objectType === 'ball') {
+                animationState.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    0.3,
+                    (Math.random() - 0.5) * 0.2
+                );
+                animationState.bouncePhase = 0;
+            }
+            
+            // Store animated object
+            state.animatedObjects.push({
+                id: `animated_${Date.now()}_${Math.random()}`,
+                type: objectType,
+                mesh: objectGroup,
+                voxelIds,
+                animationState
+            });
+            
+            console.log(`Spawned animated ${objectType} with ${voxelIds.length} voxels`);
         }
     } catch (e) {
         console.error("Error spawning object:", e);
