@@ -816,9 +816,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   const currentOutputTranscription = useRef('');
   const lastNearestNpcId = useRef<string | number | null>(null);
   
-  // Undo/Redo history
-  const undoStackRef = useRef<Array<{ type: 'add' | 'remove', voxels: any[] }>>([]);
-  const redoStackRef = useRef<Array<{ type: 'add' | 'remove', voxels: any[] }>>([]);
+  // Undo/Redo history - tracks build button and destroy button actions only
+  const undoStackRef = useRef<Array<{ type: 'add' | 'remove', position?: [number, number, number], color?: string, size?: number, glow?: boolean, voxelId?: number }>>([]);
+  const redoStackRef = useRef<Array<{ type: 'add' | 'remove', position?: [number, number, number], color?: string, size?: number, glow?: boolean, voxelId?: number }>>([]);
   const currentDragVoxelsRef = useRef<any[]>([]);
 
   const state = useRef({
@@ -1274,10 +1274,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
-        undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
-        redoStackRef.current = [];
         currentDragVoxelsRef.current = [];
-        console.log('Drag ended, added to undo stack. Stack length now:', undoStackRef.current.length);
      }
      
      if (state.touchState.activePointers.size < 2) {
@@ -2446,58 +2443,30 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const performUndo = () => {
-    console.log('Undo called, undo stack length:', undoStackRef.current.length);
-    if (undoStackRef.current.length === 0) {
-      console.log('No actions to undo');
-      return;
-    }
+    if (undoStackRef.current.length === 0) return;
     
     const action = undoStackRef.current.pop();
-    console.log('Popped action:', action);
-    
     if (!action) return;
     
     if (action.type === 'add') {
-        console.log('Undoing add of', action.voxels.length, 'voxels');
-        action.voxels.forEach(v => {
-            const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
-            if (voxelData) {
-                console.log('Removing voxel at', v.position);
-                onRemoveVoxel(voxelData.id);
-            }
-        });
+        onRemoveVoxel(action.voxelId);
     } else if (action.type === 'remove') {
-        console.log('Undoing remove of', action.voxels.length, 'voxels');
-        onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
+        onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
     }
     
     redoStackRef.current.push(action);
   };
 
   const performRedo = () => {
-    console.log('Redo called, redo stack length:', redoStackRef.current.length);
-    if (redoStackRef.current.length === 0) {
-      console.log('No actions to redo');
-      return;
-    }
+    if (redoStackRef.current.length === 0) return;
     
     const action = redoStackRef.current.pop();
-    console.log('Popped action:', action);
-    
     if (!action) return;
     
     if (action.type === 'add') {
-        console.log('Redoing add of', action.voxels.length, 'voxels');
-        onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
+        onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
     } else if (action.type === 'remove') {
-        console.log('Redoing remove of', action.voxels.length, 'voxels');
-        action.voxels.forEach(v => {
-            const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
-            if (voxelData) {
-                console.log('Removing voxel at', v.position);
-                onRemoveVoxel(voxelData.id);
-            }
-        });
+        onRemoveVoxel(action.voxelId);
     }
     
     undoStackRef.current.push(action);
@@ -2514,19 +2483,17 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
           snapToGrid(rawPos.z, selectedSize)
         ];
         onAddVoxel(newPosition, selectedColor, selectedSize, state.isGlowEnabled);
-        undoStackRef.current.push({ type: 'add', voxels: [{ position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled }] });
+        undoStackRef.current.push({ type: 'add', position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
         redoStackRef.current = [];
-        console.log('Build button clicked, undo stack length:', undoStackRef.current.length);
       }
     },
     destroy: () => { 
       if (state.targetBlock) {
         const voxelData = state.voxelMap.get(`${state.targetBlock.position.x},${state.targetBlock.position.y},${state.targetBlock.position.z}`);
         if (voxelData) {
-          undoStackRef.current.push({ type: 'remove', voxels: [{ position: [state.targetBlock.position.x, state.targetBlock.position.y, state.targetBlock.position.z], color: '#ffffff', glow: false }] });
+          undoStackRef.current.push({ type: 'remove', position: [state.targetBlock.position.x, state.targetBlock.position.y, state.targetBlock.position.z], color: voxelData.color, size: voxelData.size, glow: voxelData.glow, voxelId: voxelData.id });
           redoStackRef.current = [];
           onRemoveVoxel(state.targetBlock.id);
-          console.log('Destroy clicked, undo stack length:', undoStackRef.current.length);
         }
       }
     },
