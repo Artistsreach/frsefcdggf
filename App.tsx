@@ -559,6 +559,8 @@ const App: React.FC = () => {
   const [transcription, setTranscription] = useState({ user: '', model: '' });
   const [isCarProximity, setIsCarProximity] = useState(false);
   const [isInCar, setIsInCar] = useState(false);
+  const [showCars, setShowCars] = useState(true);
+  const [showPedestrians, setShowPedestrians] = useState(true);
   const [forSaleSign, setForSaleSign] = useState<{isNear: boolean, position: [number, number, number] | null}>({isNear: false, position: null});
   const [isBuildingPromptOpen, setIsBuildingPromptOpen] = useState(false);
   const [isBuildingLoading, setIsBuildingLoading] = useState(false);
@@ -786,6 +788,8 @@ const App: React.FC = () => {
         currentCash={cash}
         currentStamina={stamina}
         worldTheme={currentTheme}
+        showCars={showCars}
+        showPedestrians={showPedestrians}
       />
 
       {/* World Description Input */}
@@ -858,7 +862,13 @@ const App: React.FC = () => {
       
       {showStaminaPopup && <LowStaminaPopup onClose={() => setShowStaminaPopup(false)} />}
       
-      <MainMenu onCustomize={() => setIsCustomizing(true)} />
+      <MainMenu 
+        onCustomize={() => setIsCustomizing(true)}
+        showCars={showCars}
+        onToggleCars={setShowCars}
+        showPedestrians={showPedestrians}
+        onTogglePedestrians={setShowPedestrians}
+      />
       
       <CustomizationMenu
         isOpen={isCustomizing}

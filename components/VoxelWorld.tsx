@@ -37,6 +37,8 @@ interface VoxelWorldProps {
   currentCash: number;
   currentStamina: number;
   worldTheme: WorldTheme;
+  showCars: boolean;
+  showPedestrians: boolean;
 }
 
 export interface VoxelWorldApi {
