@@ -1174,15 +1174,13 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                     const placePosition = getPlacementPositionFromScreenCoords(screenX, screenY);
                     if (placePosition) {
                         onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
-                        // Always track the voxel for undo, store position and properties for fallback
-                        // Ensure position is stored as integers to match voxelMap keys
+                        // Track position for later voxel ID lookup
                         const intPosition: [number, number, number] = [
                             Math.round(placePosition[0]),
                             Math.round(placePosition[1]),
                             Math.round(placePosition[2])
                         ];
                         currentDragVoxelsRef.current.push({ position: intPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
-                        console.log('Drag: collected voxel at', intPosition, 'total:', currentDragVoxelsRef.current.length);
                     }
                 }
             }
@@ -1279,9 +1277,24 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
-        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'voxels. Adding to undo stack:', currentDragVoxelsRef.current);
-        undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
-        redoStackRef.current = [];
+        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'voxels. Looking up voxel IDs...');
+        // Collect voxel IDs by looking them up in the map
+        const voxelIds: any[] = [];
+        currentDragVoxelsRef.current.forEach(dragVoxel => {
+            const lookupKey = `${dragVoxel.position[0]},${dragVoxel.position[1]},${dragVoxel.position[2]}`;
+            const voxelData = state.voxelMap.get(lookupKey);
+            if (voxelData) {
+                voxelIds.push({ id: voxelData.id, position: dragVoxel.position, color: dragVoxel.color, size: dragVoxel.size, glow: dragVoxel.glow });
+                console.log('PointerUp: found voxel at', lookupKey, 'id:', voxelData.id);
+            } else {
+                console.warn('PointerUp: voxel not found at', lookupKey);
+            }
+        });
+        if (voxelIds.length > 0) {
+            console.log('PointerUp: adding', voxelIds.length, 'voxel IDs to undo stack');
+            undoStackRef.current.push({ type: 'add', voxelIds: voxelIds });
+            redoStackRef.current = [];
+        }
         currentDragVoxelsRef.current = [];
      }
      
@@ -2457,38 +2470,42 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     }
     
     const action = undoStackRef.current.pop();
-    console.log('Undo: popped action:', JSON.stringify(action));
+    console.log('Undo: popped action:', action?.type, 'has voxelIds:', (action as any)?.voxelIds?.length, 'has voxels:', (action as any)?.voxels?.length);
     if (!action) return;
     
     if (action.type === 'add') {
-        // Handle both single voxel and multiple voxels from drag
-        if (action.voxels && Array.isArray(action.voxels)) {
-            console.log('Undo: removing', action.voxels.length, 'dragged/batch voxels');
-            action.voxels.forEach((v: any, index: number) => {
-                // Ensure position is integers when looking up
-                const lookupKey = `${Math.round(v.position[0])},${Math.round(v.position[1])},${Math.round(v.position[2])}`;
+        // Handle new drag format with voxelIds
+        if ((action as any).voxelIds && Array.isArray((action as any).voxelIds)) {
+            console.log('Undo: removing', (action as any).voxelIds.length, 'drag voxels using IDs');
+            (action as any).voxelIds.forEach((v: any, index: number) => {
+                console.log(`Undo: removing drag voxel[${index}] id=${v.id}`);
+                onRemoveVoxel(v.id);
+            });
+        }
+        // Handle old drag format with voxels array
+        else if ((action as any).voxels && Array.isArray((action as any).voxels)) {
+            console.log('Undo: removing', (action as any).voxels.length, 'voxels (legacy format)');
+            (action as any).voxels.forEach((v: any, index: number) => {
+                const lookupKey = `${v.position[0]},${v.position[1]},${v.position[2]}`;
                 const voxelData = state.voxelMap.get(lookupKey);
                 console.log(`Undo voxel[${index}]: looking up "${lookupKey}", found:`, voxelData ? voxelData.id : 'NOT FOUND');
                 if (voxelData) {
                     onRemoveVoxel(voxelData.id);
-                } else {
-                    console.warn(`Undo: voxel not found at key "${lookupKey}"`, 'position was:', v.position);
                 }
             });
-        } else {
-            // Single voxel from build button or tap
-            const lookupKey = `${Math.round(action.position[0])},${Math.round(action.position[1])},${Math.round(action.position[2])}`;
-            console.log('Undo: removing single voxel, looking up:', lookupKey);
+        }
+        // Single voxel from build button or tap
+        else if ((action as any).position) {
+            const lookupKey = `${(action as any).position[0]},${(action as any).position[1]},${(action as any).position[2]}`;
+            console.log('Undo: removing single voxel at', lookupKey);
             const voxelData = state.voxelMap.get(lookupKey);
             if (voxelData) {
                 onRemoveVoxel(voxelData.id);
-            } else {
-                console.warn('Undo: single voxel not found at', lookupKey, 'action.position was:', action.position);
             }
         }
     } else if (action.type === 'remove') {
-        console.log('Undo: restoring voxel at', action.position);
-        onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
+        console.log('Undo: restoring deleted voxel');
+        onAddVoxel((action as any).position as [number, number, number], (action as any).color, (action as any).size, (action as any).glow);
     }
     
     redoStackRef.current.push(action);
