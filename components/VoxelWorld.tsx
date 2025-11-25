@@ -2483,7 +2483,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
           snapToGrid(rawPos.z, selectedSize)
         ];
         onAddVoxel(newPosition, selectedColor, selectedSize, state.isGlowEnabled);
-        undoStackRef.current.push({ type: 'add', position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+        
+        // Capture the voxel ID that was just created
+        const voxelData = state.voxelMap.get(`${newPosition[0]},${newPosition[1]},${newPosition[2]}`);
+        const voxelId = voxelData?.id;
+        
+        undoStackRef.current.push({ type: 'add', position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled, voxelId: voxelId });
         redoStackRef.current = [];
       }
     },
