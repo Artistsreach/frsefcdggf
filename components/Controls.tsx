@@ -13,7 +13,6 @@ interface ControlsProps {
   onJump: () => void;
   isFreeCamera: boolean;
   onToggleFreeCamera: () => void;
-  onCustomize: () => void;
   isNearNPC: boolean;
   isChatting: boolean;
   onStartChat: () => void;
@@ -74,7 +73,6 @@ const Controls: React.FC<ControlsProps> = ({
   onJump,
   isFreeCamera,
   onToggleFreeCamera,
-  onCustomize,
   isNearNPC,
   isChatting,
   onStartChat,
@@ -130,21 +128,12 @@ const Controls: React.FC<ControlsProps> = ({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden">
-      {/* Top Left: Stats & Menu */}
+      {/* Top Left: Stats */}
       <div className="absolute top-4 left-4 flex flex-col gap-3 pointer-events-auto">
         <div className="flex items-center bg-black/50 backdrop-blur-md text-white px-4 py-2 rounded-full border border-white/10 shadow-lg">
           <span className="text-green-400 font-bold mr-1">$</span>
           <span className="font-mono text-lg">{cash.toLocaleString()}</span>
         </div>
-        <button
-          onClick={onCustomize}
-          className="w-12 h-12 bg-gray-800/80 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-lg border border-white/10 active:scale-95 transition-transform"
-          title="Customize Character"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        </button>
       </div>
 
       {/* Top Right: Camera Toggle */}

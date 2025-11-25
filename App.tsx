@@ -830,7 +830,6 @@ const App: React.FC = () => {
         onJump={() => voxelWorldRef.current?.jump()}
         isFreeCamera={isFreeCamera}
         onToggleFreeCamera={() => setIsFreeCamera(!isFreeCamera)}
-        onCustomize={() => setIsCustomizing(true)}
         isNearNPC={!!nearbyNpc}
         isChatting={isChatting}
         onStartChat={() => { setIsChatting(true); if(nearbyNpc && voxelWorldRef.current) voxelWorldRef.current.startConversation(nearbyNpc); }}
