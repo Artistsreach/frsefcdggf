@@ -1049,7 +1049,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                placePosition = [snapToGrid(target.x, selectedSize), 0, snapToGrid(target.z, selectedSize)];
           }
       }
-      if (placePosition) onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
+      if (placePosition) {
+          onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
+          undoStackRef.current.push({ type: 'add', position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+          redoStackRef.current = [];
+      }
   };
 
   const handleDestroy = (clientX: number, clientY: number) => {
