@@ -2493,7 +2493,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
       if (state.targetBlock) {
         const voxelData = state.voxelMap.get(`${state.targetBlock.position.x},${state.targetBlock.position.y},${state.targetBlock.position.z}`);
         if (voxelData) {
-          undoStackRef.current.push({ type: 'remove', voxels: [{ position: [state.targetBlock.position.x, state.targetBlock.position.y, state.targetBlock.position.z], color: voxels.find(v => v.id === voxelData.id)?.color || '#ffffff', glow: voxels.find(v => v.id === voxelData.id)?.glow }] });
+          undoStackRef.current.push({ type: 'remove', voxels: [{ position: [state.targetBlock.position.x, state.targetBlock.position.y, state.targetBlock.position.z], color: '#ffffff', glow: false }] });
           redoStackRef.current = [];
           onRemoveVoxel(state.targetBlock.id);
         }
