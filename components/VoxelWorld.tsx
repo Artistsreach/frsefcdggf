@@ -994,6 +994,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         type: 'dog' | 'bird' | 'drone' | 'helicopter' | 'ball' | 'racecar' | 'generic',
         mesh: THREE.Group,
         voxelIds: number[],
+        relativePositions: { x: number, y: number, z: number }[],
         animationState: {
             time: number,
             path?: THREE.CatmullRomCurve3,
@@ -1911,19 +1912,13 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
                 const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
                 
-                // Update all voxels in the object
-                obj.voxelIds.forEach(voxelId => {
-                    const voxelData = state.voxels.find(v => v.id === voxelId);
-                    if (voxelData) {
-                        const relativePos = new THREE.Vector3(
-                            voxelData.position[0] - obj.mesh.position.x,
-                            voxelData.position[1] - obj.mesh.position.y,
-                            voxelData.position[2] - obj.mesh.position.z
-                        );
-                        
-                        // Simple walk bobbing
-                        const bobOffset = Math.sin(time * 8) * 0.05;
-                        
+                // Simple walk bobbing
+                const bobOffset = Math.sin(time * 8) * 0.05;
+                
+                // Update all voxels using stored relative positions
+                obj.voxelIds.forEach((voxelId, index) => {
+                    const relativePos = obj.relativePositions[index];
+                    if (relativePos) {
                         const matrix = new THREE.Matrix4();
                         state.instancedMesh.getMatrixAt(voxelId, matrix);
                         matrix.setPosition(
@@ -1943,15 +1938,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
                 const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
                 
-                obj.voxelIds.forEach(voxelId => {
-                    const voxelData = state.voxels.find(v => v.id === voxelId);
-                    if (voxelData) {
-                        const relativePos = new THREE.Vector3(
-                            voxelData.position[0] - obj.mesh.position.x,
-                            voxelData.position[1] - obj.mesh.position.y,
-                            voxelData.position[2] - obj.mesh.position.z
-                        );
-                        
+                obj.voxelIds.forEach((voxelId, index) => {
+                    const relativePos = obj.relativePositions[index];
+                    if (relativePos) {
                         // Wing flap effect for outer voxels
                         const isWing = Math.abs(relativePos.x) > 1;
                         const flapOffset = isWing ? Math.sin(time * 10) * 0.3 : 0;
@@ -1975,18 +1964,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
                 const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
                 
-                obj.voxelIds.forEach(voxelId => {
-                    const voxelData = state.voxels.find(v => v.id === voxelId);
-                    if (voxelData) {
-                        const relativePos = new THREE.Vector3(
-                            voxelData.position[0] - obj.mesh.position.x,
-                            voxelData.position[1] - obj.mesh.position.y,
-                            voxelData.position[2] - obj.mesh.position.z
-                        );
-                        
-                        // Hover oscillation
-                        const hoverOffset = Math.sin(time * 4) * 0.15;
-                        
+                // Hover oscillation
+                const hoverOffset = Math.sin(time * 4) * 0.15;
+                
+                obj.voxelIds.forEach((voxelId, index) => {
+                    const relativePos = obj.relativePositions[index];
+                    if (relativePos) {
                         const matrix = new THREE.Matrix4();
                         state.instancedMesh.getMatrixAt(voxelId, matrix);
                         matrix.setPosition(
@@ -2001,16 +1984,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 obj.mesh.position.copy(position);
             }
         } else if (obj.type === 'helicopter') {
-            // Helicopter with spinning rotors
-            obj.voxelIds.forEach(voxelId => {
-                const voxelData = state.voxels.find(v => v.id === voxelId);
-                if (voxelData) {
-                    const relativePos = new THREE.Vector3(
-                        voxelData.position[0] - obj.mesh.position.x,
-                        voxelData.position[1] - obj.mesh.position.y,
-                        voxelData.position[2] - obj.mesh.position.z
-                    );
-                    
+            // Helicopter with spinning rotors (stationary hover)
+            const hoverBob = Math.sin(time * 2) * 0.1;
+            
+            obj.voxelIds.forEach((voxelId, index) => {
+                const relativePos = obj.relativePositions[index];
+                if (relativePos) {
                     // Rotor spin (top voxels)
                     const isRotor = relativePos.y > 3;
                     let finalX = relativePos.x;
@@ -2027,7 +2006,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                     state.instancedMesh.getMatrixAt(voxelId, matrix);
                     matrix.setPosition(
                         obj.mesh.position.x + finalX,
-                        obj.mesh.position.y + relativePos.y,
+                        obj.mesh.position.y + relativePos.y + hoverBob,
                         obj.mesh.position.z + finalZ
                     );
                     state.instancedMesh.setMatrixAt(voxelId, matrix);
@@ -2051,19 +2030,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 velocity.z *= 0.95;
             }
             
-            // Rolling rotation
-            const rollSpeed = velocity.length() * 2;
-            
-            obj.voxelIds.forEach(voxelId => {
-                const voxelData = state.voxels.find(v => v.id === voxelId);
-                if (voxelData) {
+            obj.voxelIds.forEach((voxelId, index) => {
+                const relativePos = obj.relativePositions[index];
+                if (relativePos) {
                     const matrix = new THREE.Matrix4();
                     state.instancedMesh.getMatrixAt(voxelId, matrix);
-                    const relativePos = new THREE.Vector3(
-                        voxelData.position[0] - obj.mesh.position.x,
-                        voxelData.position[1] - obj.mesh.position.y,
-                        voxelData.position[2] - obj.mesh.position.z
-                    );
                     matrix.setPosition(
                         obj.mesh.position.x + relativePos.x,
                         obj.mesh.position.y + relativePos.y,
@@ -2085,15 +2056,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 const direction = new THREE.Vector3().subVectors(nextPos, position).normalize();
                 const angle = Math.atan2(direction.x, direction.z);
                 
-                obj.voxelIds.forEach(voxelId => {
-                    const voxelData = state.voxels.find(v => v.id === voxelId);
-                    if (voxelData) {
-                        const relativePos = new THREE.Vector3(
-                            voxelData.position[0] - obj.mesh.position.x,
-                            voxelData.position[1] - obj.mesh.position.y,
-                            voxelData.position[2] - obj.mesh.position.z
-                        );
-                        
+                obj.voxelIds.forEach((voxelId, index) => {
+                    const relativePos = obj.relativePositions[index];
+                    if (relativePos) {
                         // Rotate around car center
                         const rotatedX = relativePos.x * Math.cos(angle) - relativePos.z * Math.sin(angle);
                         const rotatedZ = relativePos.x * Math.sin(angle) + relativePos.z * Math.cos(angle);
@@ -2665,13 +2630,38 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     else if (lowerPrompt.includes('race') || lowerPrompt.includes('racecar') || lowerPrompt.includes('sports car')) objectType = 'racecar';
 
     try {
+        // Determine appropriate size based on object type
+        let gridSize = '10x10x10';
+        let sizeHint = '';
+        if (objectType === 'dog') {
+            gridSize = '6x4x3';
+            sizeHint = 'A dog should be roughly 1-1.5 blocks tall (characters are 2 blocks tall), 2-3 blocks long, and 1 block wide.';
+        } else if (objectType === 'bird') {
+            gridSize = '4x3x4';
+            sizeHint = 'A bird should be small, about 0.5-1 block tall with wings spread.';
+        } else if (objectType === 'drone') {
+            gridSize = '3x2x3';
+            sizeHint = 'A drone should be compact, about 1-1.5 blocks in size.';
+        } else if (objectType === 'helicopter') {
+            gridSize = '8x6x8';
+            sizeHint = 'A helicopter should be about 3-4 blocks tall and 4-6 blocks long (life-size vehicle).';
+        } else if (objectType === 'ball') {
+            gridSize = '2x2x2';
+            sizeHint = 'A ball should be 1-2 blocks in diameter.';
+        } else if (objectType === 'racecar') {
+            gridSize = '8x4x6';
+            sizeHint = 'A race car should be about 2 blocks tall, 4-5 blocks long, and 2-3 blocks wide (life-size vehicle).';
+        }
+        
         const response = await state.gemini.ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Generate a voxel model for: "${prompt}".
+            contents: `Generate a LIFE-SIZE voxel model for: "${prompt}".
             Return a JSON array.
-            The model should fit in a 10x10x10 grid.
+            The model should fit within a ${gridSize} grid (X, Y, Z).
+            ${sizeHint}
             Voxels should be relative to [0,0,0] (bottom center).
             Important: The object must be oriented upright with the Y axis pointing up. The object should be designed to sit on the ground (Y=0). The lowest point of the object must be at Y=0. Do not generate voxels below Y=0.
+            Make it detailed and recognizable as the requested object.
             Schema: Array<{position: [x, y, z], color: string}>.
             Ensure colors are hex strings.`,
             config: {
@@ -2692,6 +2682,13 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
         const data = JSON.parse(response.text);
         if (Array.isArray(data)) {
+            // Store relative positions before converting to world coordinates
+            const relativePositions = data.map((v: any) => ({
+                x: v.position[0],
+                y: v.position[1],
+                z: v.position[2]
+            }));
+            
             const voxelsToAdd = data.map((v: any) => ({
                 position: [
                     sx + v.position[0],
@@ -2762,10 +2759,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 type: objectType,
                 mesh: objectGroup,
                 voxelIds,
+                relativePositions,
                 animationState
             });
             
-            console.log(`Spawned animated ${objectType} with ${voxelIds.length} voxels`);
+            console.log(`Spawned animated ${objectType} with ${voxelIds.length} voxels at (${sx}, ${groundY + 1}, ${sz})`);
         }
     } catch (e) {
         console.error("Error spawning object:", e);
