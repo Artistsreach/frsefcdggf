@@ -2208,15 +2208,6 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
       state.isGlowEnabled = isGlowEnabled;
   }, [isGlowEnabled]);
 
-  useEffect(() => {
-      state.pedestrians.forEach(ped => { ped.mesh.visible = showPedestrians; });
-  }, [showPedestrians]);
-
-  useEffect(() => {
-      state.cars.forEach(car => { car.mesh.visible = showCars; });
-      state.drivableCars.forEach(car => { car.mesh.visible = showCars; });
-  }, [showCars]);
-
   const detectGreenAreaBounds = (centerX: number, centerZ: number): { minX: number, maxX: number, minZ: number, maxZ: number, valid: boolean } => {
     const groundY = -1;
     const maxPlotWidth = 100;
