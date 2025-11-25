@@ -3571,9 +3571,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
       if (logic.updateTeacher) logic.updateTeacher(delta);
       if (logic.updateWizard) logic.updateWizard(delta);
       if (logic.updateCustomNPCs) logic.updateCustomNPCs(delta);
+      // Update AI car visibility and physics
+      state.cars.forEach(car => { car.mesh.visible = showCarsRef.current; });
       if (logic.updateCars) logic.updateCars(delta);
       
-      // Update car visibility and physics
+      // Update drivable car visibility and physics
       state.drivableCars.forEach(car => { car.mesh.visible = showCarsRef.current; });
       if (logic.updateDrivableCars) logic.updateDrivableCars(delta);
       
