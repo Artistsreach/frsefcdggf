@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Voxel Builder 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+
+    <style>
+      body {
+        overscroll-behavior: none;
+        touch-action: none;
+      }
+      /* Simple scrollbar styling */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(100, 116, 139, 0.3);
+        border-radius: 10px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(156, 163, 175, 0.5);
+        border-radius: 10px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(156, 163, 175, 0.8);
+      }
+      
+      /* Lesson content interactive styles */
+      .lesson-content button {
+        cursor: pointer;
+        user-select: none;
+      }
+      
+      .lesson-content .correct-answer {
+        animation: correctPulse 0.6s ease-in-out;
+      }
+      
+      .lesson-content .wrong-answer {
+        animation: shake 0.5s ease-in-out;
+      }
+      
+      .lesson-content .confetti {
+        position: fixed;
+        pointer-events: none;
+        animation: confettiFall 3s linear forwards;
+      }
+      
+      @keyframes correctPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(34, 197, 94, 0.6); }
+      }
+      
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+      }
+      
+      @keyframes confettiFall {
+        0% { 
+          transform: translateY(-100vh) rotate(0deg); 
+          opacity: 1;
+        }
+        100% { 
+          transform: translateY(100vh) rotate(360deg); 
+          opacity: 0;
+        }
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      .lesson-content .fade-in {
+        animation: fadeIn 0.5s ease-out;
+      }
+    </style>
+  <link rel="stylesheet" href="/index.css">
+    <script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "three/": "https://aistudiocdn.com/three@^0.181.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-DEToN8IC.js"></script>
+</head>
+  <body class="bg-gray-900">
+    <div id="root"></div>
+  </body>
+</html>

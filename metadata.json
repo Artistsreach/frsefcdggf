@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Voxel Builder 3DXVZAEPeh",
+  "description": "A simple 3D voxel-based building game for mobile touch screens. Tap to build or destroy blocks in a 3D world.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
