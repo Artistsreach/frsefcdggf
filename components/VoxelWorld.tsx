@@ -1181,8 +1181,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                         snapToGrid(pos.z, selectedSize)
                     ];
                     onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
-                    // Always track the voxel for undo, store position and properties for fallback
-                    currentDragVoxelsRef.current.push({ position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                    // Capture voxel immediately after placement
+                    const voxelData = state.voxelMap.get(`${placePosition[0]},${placePosition[1]},${placePosition[2]}`);
+                    if (voxelData) {
+                        currentDragVoxelsRef.current.push({ voxelId: voxelData.id, position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                    }
                 }
             }
             
@@ -1278,32 +1281,19 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
-        // Deduplicate voxels by position and capture actual voxel IDs from the map
-        const uniquePositions = new Map<string, any>();
-        currentDragVoxelsRef.current.forEach(v => {
-            const key = `${v.position[0]},${v.position[1]},${v.position[2]}`;
-            if (!uniquePositions.has(key)) {
-                uniquePositions.set(key, v);
-            }
-        });
-        
-        // Look up actual voxel IDs from the map for each position
+        // Deduplicate voxels by ID (some positions may have had multiple attempts to place)
+        const uniqueIds = new Set<number>();
         const dedupedVoxels: any[] = [];
-        uniquePositions.forEach((v, posKey) => {
-            const voxelData = state.voxelMap.get(posKey);
-            if (voxelData) {
-                dedupedVoxels.push({ 
-                    voxelId: voxelData.id, 
-                    position: v.position, 
-                    color: v.color, 
-                    size: v.size, 
-                    glow: v.glow 
-                });
+        
+        currentDragVoxelsRef.current.forEach(v => {
+            if (v.voxelId && !uniqueIds.has(v.voxelId)) {
+                uniqueIds.add(v.voxelId);
+                dedupedVoxels.push(v);
             }
         });
         
         if (dedupedVoxels.length > 0) {
-            console.log('PointerUp: drag ended, storing', dedupedVoxels.length, 'unique voxels with IDs');
+            console.log('PointerUp: drag ended, storing', dedupedVoxels.length, 'voxels with IDs:', dedupedVoxels.map(v => v.voxelId));
             undoStackRef.current.push({ type: 'add', voxels: dedupedVoxels });
             redoStackRef.current = [];
         }
