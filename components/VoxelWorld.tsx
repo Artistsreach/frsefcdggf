@@ -2593,6 +2593,30 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     } catch (error) { console.error("Error generating building with Gemini:", error); if (closestWorker) closestWorker.isPreparing = false; }
   };
 
+  const detectAnimationType = (prompt: string): 'walk' | 'fly' | 'hover' | 'spin' | 'bounce' | 'drive' | 'swim' => {
+    const lowerPrompt = prompt.toLowerCase();
+    
+    // Movement-based detection
+    if (lowerPrompt.match(/walk|run|trot|gallop|stride|march|waddle|tread|pace/)) return 'walk';
+    if (lowerPrompt.match(/fly|soar|swoop|glide|flutter|wing/)) return 'fly';
+    if (lowerPrompt.match(/hover|hovering|stationary|float|levitate|drift|bob/)) return 'hover';
+    if (lowerPrompt.match(/spin|rotate|twirl|whirl|spinning|rotor|propeller|turbine/)) return 'spin';
+    if (lowerPrompt.match(/bounce|hop|jump|spring|bouncing|boing|ball|sphere/)) return 'bounce';
+    if (lowerPrompt.match(/drive|ride|cruise|travel|roll|race|vehicle|car|truck|bus/)) return 'drive';
+    if (lowerPrompt.match(/swim|dive|submerge|underwater|submarine|fish|whale|dolphin/)) return 'swim';
+    
+    // Object-based fallback
+    if (lowerPrompt.match(/dog|cat|rabbit|deer|horse|zebra|lion|tiger|wolf|fox|squirrel|animal/)) return 'walk';
+    if (lowerPrompt.match(/bird|eagle|owl|hawk|parrot|phoenix|dragon|pterodactyl|bee|butterfly/)) return 'fly';
+    if (lowerPrompt.match(/ball|sphere|orb|marble|puck|stone|rock|globe/)) return 'bounce';
+    if (lowerPrompt.match(/helicopter|chopper|drone|quadcopter|ufo/)) return 'hover';
+    if (lowerPrompt.match(/car|truck|race|sports|vehicle|bus|train/)) return 'drive';
+    if (lowerPrompt.match(/submarine|octopus|jellyfish|manta|stingray/)) return 'swim';
+    if (lowerPrompt.match(/top|spinner|windmill|carousel|ferris/)) return 'spin';
+    
+    return 'hover'; // Safe default
+  };
+
   const spawnGenerativeObject = async (prompt: string) => {
     if (!state.gemini.ai || !state.wizard.mesh) return;
     
@@ -2614,7 +2638,10 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     }
     if (groundY === -Infinity) groundY = -1; // Default to ground level if not found
 
-    // Detect object type from prompt
+    // Detect animation type dynamically
+    const animationType = detectAnimationType(prompt);
+
+    // Detect object type from prompt (legacy, for size hints)
     const lowerPrompt = prompt.toLowerCase();
     let objectType: 'dog' | 'bird' | 'drone' | 'helicopter' | 'ball' | 'racecar' | 'generic' = 'generic';
     
@@ -2708,10 +2735,10 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             objectGroup.position.set(sx, groundY + 1, sz);
             state.scene.add(objectGroup);
             
-            // Create animation state based on type
+            // Create animation state based on detected animation type
             const animationState: any = { time: 0 };
             
-            if (objectType === 'dog' || objectType === 'racecar') {
+            if (animationType === 'walk' || animationType === 'drive') {
                 // Create a random path around the spawn area
                 const pathPoints: THREE.Vector3[] = [];
                 const radius = 8;
@@ -2725,39 +2752,53 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 }
                 animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
                 animationState.progress = 0;
-                animationState.speed = objectType === 'dog' ? 0.02 : 0.05;
-            } else if (objectType === 'bird' || objectType === 'drone') {
-                // Create a flying path
+                animationState.speed = animationType === 'walk' ? 0.02 : 0.05;
+            } else if (animationType === 'fly' || animationType === 'hover') {
+                // Create a flying/hovering path
                 const pathPoints: THREE.Vector3[] = [];
-                const radius = 10;
-                const height = groundY + 8;
+                const radius = animationType === 'hover' ? 3 : 10;
+                const height = groundY + (animationType === 'hover' ? 5 : 8);
                 for (let i = 0; i < 8; i++) {
                     const angle = (i / 8) * Math.PI * 2;
                     pathPoints.push(new THREE.Vector3(
                         sx + Math.cos(angle) * radius,
-                        height + Math.sin(angle * 2) * 2,
+                        height + Math.sin(angle * 2) * (animationType === 'hover' ? 1 : 2),
                         sz + Math.sin(angle) * radius
                     ));
                 }
                 animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
                 animationState.progress = 0;
-                animationState.speed = objectType === 'bird' ? 0.015 : 0.02;
-            } else if (objectType === 'helicopter') {
-                animationState.rotation = new THREE.Euler(0, 0, 0);
-                animationState.velocity = new THREE.Vector3(0, 0, 0);
-            } else if (objectType === 'ball') {
+                animationState.speed = animationType === 'fly' ? 0.015 : 0.01;
+            } else if (animationType === 'bounce') {
                 animationState.velocity = new THREE.Vector3(
                     (Math.random() - 0.5) * 0.2,
                     0.3,
                     (Math.random() - 0.5) * 0.2
                 );
-                animationState.bouncePhase = 0;
+            } else if (animationType === 'spin') {
+                animationState.rotation = new THREE.Euler(0, 0, 0);
+            } else if (animationType === 'swim') {
+                // Create a wavy swimming path
+                const pathPoints: THREE.Vector3[] = [];
+                const radius = 6;
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    pathPoints.push(new THREE.Vector3(
+                        sx + Math.cos(angle) * radius,
+                        groundY + 2,
+                        sz + Math.sin(angle) * radius
+                    ));
+                }
+                animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
+                animationState.progress = 0;
+                animationState.speed = 0.015;
             }
             
-            // Store animated object
+            // Store animated object with detected animation type
             state.animatedObjects.push({
                 id: `animated_${Date.now()}_${Math.random()}`,
                 type: objectType,
+                animationType: animationType,
                 mesh: objectGroup,
                 instanceIndices,
                 relativePositions,
