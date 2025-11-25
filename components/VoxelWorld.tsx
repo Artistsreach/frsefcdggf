@@ -1181,11 +1181,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                         snapToGrid(pos.z, selectedSize)
                     ];
                     onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
-                    // Capture voxel immediately after placement
-                    const voxelData = state.voxelMap.get(`${placePosition[0]},${placePosition[1]},${placePosition[2]}`);
-                    if (voxelData) {
-                        currentDragVoxelsRef.current.push({ voxelId: voxelData.id, position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
-                    }
+                    // Always track the voxel for undo, store position and properties for fallback
+                    currentDragVoxelsRef.current.push({ position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
                 }
             }
             
@@ -1281,22 +1278,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
-        // Deduplicate voxels by ID (some positions may have had multiple attempts to place)
-        const uniqueIds = new Set<number>();
-        const dedupedVoxels: any[] = [];
-        
-        currentDragVoxelsRef.current.forEach(v => {
-            if (v.voxelId && !uniqueIds.has(v.voxelId)) {
-                uniqueIds.add(v.voxelId);
-                dedupedVoxels.push(v);
-            }
-        });
-        
-        if (dedupedVoxels.length > 0) {
-            console.log('PointerUp: drag ended, storing', dedupedVoxels.length, 'voxels with IDs:', dedupedVoxels.map(v => v.voxelId));
-            undoStackRef.current.push({ type: 'add', voxels: dedupedVoxels });
-            redoStackRef.current = [];
-        }
+        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'voxels. Adding to undo stack:', currentDragVoxelsRef.current);
+        undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
+        redoStackRef.current = [];
         currentDragVoxelsRef.current = [];
      }
      
@@ -2480,11 +2464,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         if (action.voxels) {
             console.log('Undo: removing', action.voxels.length, 'dragged voxels');
             action.voxels.forEach((v: any) => {
-                // Use stored voxel ID if available (drag voxels have IDs), otherwise lookup by position
-                const voxelId = v.voxelId || state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`)?.id;
-                if (voxelId) {
-                    console.log('Undo: removing voxel id:', voxelId);
-                    onRemoveVoxel(voxelId);
+                // Lookup voxel by position
+                const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+                if (voxelData) {
+                    console.log('Undo: removing voxel at', v.position, 'id:', voxelData.id);
+                    onRemoveVoxel(voxelData.id);
                 }
             });
         } else {
