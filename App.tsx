@@ -367,7 +367,7 @@ function generateWorldData(theme: WorldTheme) {
       for (let y = 1; y <= height; y++) { for (let x = 0; x < width; x++) { for (let z = 0; z < depth; z++) { if (x === 0 || x === width - 1 || z === 0 || z === depth - 1) { const isDoorArea = x === 0 && z >= doorZStart && z < doorZStart + doorWidth && y <= doorHeight; const isFrontWindow = x === 0 && y >= windowYStart && y <= windowYEnd && ((z >= 3 && z < doorZStart - 2) || (z >= doorZStart + doorWidth + 2 && z < depth - 3)); const isSideWindow = z === 0 && y >= windowYStart && y <= windowYEnd && ((x >= 4 && x <= 8) || (x >= width - 9 && x <= width - 5)); if (!isDoorArea && !isFrontWindow && !isSideWindow) { setBlock([ox + x, oy + y, oz + z], WALL_COLOR); } } } } }
       for (let y = 1; y <= doorHeight + 1; y++) { setBlock([ox, oy + y, oz + doorZStart - 1], DOOR_FRAME_COLOR); setBlock([ox, oy + y, oz + doorZStart + doorWidth], DOOR_FRAME_COLOR); }
       for (let z = doorZStart; z < doorZStart + doorWidth; z++) { setBlock([ox, oy + doorHeight + 1, oz + z], DOOR_FRAME_COLOR); }
-      for (let z of [1, depth - 2]) { setBlock([ox - 1, oy, z], theme.roadColor); setBlock([ox - 1, oy + 1, z], theme.roadColor); }
+      for (let z of [1, depth - 2]) { setBlock([ox - 1, oy, z], '#8b4513'); setBlock([ox - 1, oy + 1, z], '#22c55e'); }
       for (let x = -1; x <= width; x++) { for (let z = -1; z <= depth; z++) { setBlock([ox + x, oy + height + 1, oz + z], ROOF_COLOR); } }
       for(let x=10; x<16; x++) for(let z=10; z<16; z++) for(let y=1; y<=3; y++) { setBlock([ox + x, oy + height + 1 + y, oz + z], '#555555'); }
       setBlock([ox + 13, oy + height + 5, oz + 13], '#111111');
