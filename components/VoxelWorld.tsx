@@ -1100,6 +1100,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
     if (state.touchState.activePointers.size === 1) {
         currentDragVoxelsRef.current = [];
+        currentDragVoxelsRef.dragStartVoxelCount = voxels.length;
         state.touchState.isTapCandidate = true;
         state.touchState.tapStartX = e.clientX;
         state.touchState.tapStartY = e.clientY;
@@ -1277,22 +1278,16 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
-        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'voxels. Looking up voxel IDs...');
-        // Collect voxel IDs by looking them up in the map
-        const voxelIds: any[] = [];
-        currentDragVoxelsRef.current.forEach(dragVoxel => {
-            const lookupKey = `${dragVoxel.position[0]},${dragVoxel.position[1]},${dragVoxel.position[2]}`;
-            const voxelData = state.voxelMap.get(lookupKey);
-            if (voxelData) {
-                voxelIds.push({ id: voxelData.id, position: dragVoxel.position, color: dragVoxel.color, size: dragVoxel.size, glow: dragVoxel.glow });
-                console.log('PointerUp: found voxel at', lookupKey, 'id:', voxelData.id);
-            } else {
-                console.warn('PointerUp: voxel not found at', lookupKey);
-            }
-        });
-        if (voxelIds.length > 0) {
-            console.log('PointerUp: adding', voxelIds.length, 'voxel IDs to undo stack');
-            undoStackRef.current.push({ type: 'add', voxelIds: voxelIds });
+        const dragStartCount = (currentDragVoxelsRef as any).dragStartVoxelCount || 0;
+        const dragEndCount = voxels.length;
+        const numDragVoxels = dragEndCount - dragStartCount;
+        console.log('PointerUp: drag session had', numDragVoxels, 'voxels (start:', dragStartCount, 'end:', dragEndCount, ')');
+        
+        if (numDragVoxels > 0) {
+            // Get the voxels that were added during this drag
+            const draggedVoxels = voxels.slice(dragStartCount, dragEndCount);
+            console.log('PointerUp: captured', draggedVoxels.length, 'dragged voxels for undo');
+            undoStackRef.current.push({ type: 'add', voxelIds: draggedVoxels.map((v: any) => ({ id: v.id, position: v.position, color: v.color, size: v.size, glow: v.glow })) });
             redoStackRef.current = [];
         }
         currentDragVoxelsRef.current = [];
