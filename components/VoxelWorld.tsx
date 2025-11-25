@@ -2024,9 +2024,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             // Calculate movement direction angle - fixed to handle all 360 degrees
             const moveAngle = Math.atan2(-movement.y, movement.x);
             // Smoothly interpolate camera yaw to follow movement direction
-            const angleDiff = moveAngle - orbit_angle.y;
-            const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
-            orbit_angle.y += normalizedDiff * Math.min(delta * 5, 1); // Smoothly track movement
+            let angleDiff = moveAngle - orbit_angle.y;
+            // Normalize angle difference to shortest path
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            orbit_angle.y += angleDiff * Math.min(delta * 5, 1); // Smoothly track movement
         }
         
         const orbitPos = new THREE.Vector3(Math.sin(orbit_angle.y) * Math.cos(orbit_angle.x), Math.sin(orbit_angle.x), Math.cos(orbit_angle.y) * Math.cos(orbit_angle.x));
