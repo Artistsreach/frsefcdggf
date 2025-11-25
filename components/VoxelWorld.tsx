@@ -1180,9 +1180,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                         0,
                         snapToGrid(pos.z, selectedSize)
                     ];
-                    const voxelData = { position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled };
-                    currentDragVoxelsRef.current.push(voxelData);
                     onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
+                    // Immediately capture the voxel ID after placement
+                    const voxelData = state.voxelMap.get(`${placePosition[0]},${placePosition[1]},${placePosition[2]}`);
+                    if (voxelData) {
+                        currentDragVoxelsRef.current.push({ voxelId: voxelData.id, position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                    }
                 }
             }
             
@@ -1278,6 +1281,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
+        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'voxels. Adding to undo stack:', currentDragVoxelsRef.current);
         undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
         redoStackRef.current = [];
         currentDragVoxelsRef.current = [];
@@ -2449,20 +2453,28 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   };
 
   const performUndo = () => {
-    if (undoStackRef.current.length === 0) return;
+    if (undoStackRef.current.length === 0) {
+      console.log('Undo: stack empty');
+      return;
+    }
     
     const action = undoStackRef.current.pop();
+    console.log('Undo: popped action:', action);
     if (!action) return;
     
     if (action.type === 'add') {
         // Handle both single voxel and multiple voxels from drag
         if (action.voxels) {
+            console.log('Undo: removing', action.voxels.length, 'dragged voxels');
             action.voxels.forEach((v: any) => {
-                const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
-                if (voxelData) onRemoveVoxel(voxelData.id);
+                // Use stored voxel ID if available (drag voxels), otherwise lookup by position (tap/button)
+                const voxelId = v.voxelId || state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`)?.id;
+                console.log('Undo: removing voxel id', voxelId);
+                if (voxelId) onRemoveVoxel(voxelId);
             });
         } else {
             // Single voxel from build button
+            console.log('Undo: removing single voxel at', action.position);
             const voxelData = state.voxelMap.get(`${action.position[0]},${action.position[1]},${action.position[2]}`);
             if (voxelData) onRemoveVoxel(voxelData.id);
         }
@@ -2482,11 +2494,13 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     if (action.type === 'add') {
         // Handle both single voxel and multiple voxels from drag
         if (action.voxels) {
+            console.log('Redo: restoring', action.voxels.length, 'dragged voxels');
             action.voxels.forEach((v: any) => {
                 onAddVoxel(v.position as [number, number, number], v.color, v.size, v.glow);
             });
         } else {
             // Single voxel from build button
+            console.log('Redo: restoring single voxel');
             onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
         }
     } else if (action.type === 'remove') {
