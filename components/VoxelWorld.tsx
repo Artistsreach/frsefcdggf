@@ -1274,6 +1274,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
+        undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
+        redoStackRef.current = [];
         currentDragVoxelsRef.current = [];
      }
      
@@ -2449,9 +2451,17 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     if (!action) return;
     
     if (action.type === 'add') {
-        // Look up the voxel by position and remove it
-        const voxelData = state.voxelMap.get(`${action.position[0]},${action.position[1]},${action.position[2]}`);
-        if (voxelData) onRemoveVoxel(voxelData.id);
+        // Handle both single voxel and multiple voxels from drag
+        if (action.voxels) {
+            action.voxels.forEach((v: any) => {
+                const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+                if (voxelData) onRemoveVoxel(voxelData.id);
+            });
+        } else {
+            // Single voxel from build button
+            const voxelData = state.voxelMap.get(`${action.position[0]},${action.position[1]},${action.position[2]}`);
+            if (voxelData) onRemoveVoxel(voxelData.id);
+        }
     } else if (action.type === 'remove') {
         onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
     }
@@ -2466,7 +2476,15 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     if (!action) return;
     
     if (action.type === 'add') {
-        onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
+        // Handle both single voxel and multiple voxels from drag
+        if (action.voxels) {
+            action.voxels.forEach((v: any) => {
+                onAddVoxel(v.position as [number, number, number], v.color, v.size, v.glow);
+            });
+        } else {
+            // Single voxel from build button
+            onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
+        }
     } else if (action.type === 'remove') {
         onRemoveVoxel(action.voxelId);
     }
