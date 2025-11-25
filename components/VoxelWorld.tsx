@@ -2449,7 +2449,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     if (!action) return;
     
     if (action.type === 'add') {
-        onRemoveVoxel(action.voxelId);
+        // Look up the voxel by position and remove it
+        const voxelData = state.voxelMap.get(`${action.position[0]},${action.position[1]},${action.position[2]}`);
+        if (voxelData) onRemoveVoxel(voxelData.id);
     } else if (action.type === 'remove') {
         onAddVoxel(action.position as [number, number, number], action.color, action.size, action.glow);
     }
@@ -2483,12 +2485,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
           snapToGrid(rawPos.z, selectedSize)
         ];
         onAddVoxel(newPosition, selectedColor, selectedSize, state.isGlowEnabled);
-        
-        // Capture the voxel ID that was just created
-        const voxelData = state.voxelMap.get(`${newPosition[0]},${newPosition[1]},${newPosition[2]}`);
-        const voxelId = voxelData?.id;
-        
-        undoStackRef.current.push({ type: 'add', position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled, voxelId: voxelId });
+        undoStackRef.current.push({ type: 'add', position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
         redoStackRef.current = [];
       }
     },
