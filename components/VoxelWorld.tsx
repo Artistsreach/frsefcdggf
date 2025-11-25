@@ -1182,7 +1182,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             state.manualCameraControl = true;
         }
     } else if (state.touchState.activePointers.size === 2) {
-        // 2 fingers: Distinguish between pinch (zoom) and rotation (orbit)
+        // 2 fingers: Dynamic detection between pinch (zoom) and rotation (orbit)
         state.touchState.isTapCandidate = false;
         if (state.touchState.longPressTimer) {
              clearTimeout(state.touchState.longPressTimer);
@@ -1199,25 +1199,30 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         const centerX = (p1.x + p2.x) / 2;
         const centerY = (p1.y + p2.y) / 2;
         
-        // Determine gesture type on first frame
         if (state.touchState.lastPinchDist === null) {
             state.touchState.lastPinchDist = dist;
             state.touchState.lastTwoFingerCenter = { x: centerX, y: centerY };
-            state.touchState.twoFingerGestureType = null; // Will detect on next frame
         } else {
+            const prevCenter = state.touchState.lastTwoFingerCenter!;
+            const centerDeltaX = centerX - prevCenter.x;
+            const centerDeltaY = centerY - prevCenter.y;
+            const centerMovement = Math.sqrt(centerDeltaX * centerDeltaX + centerDeltaY * centerDeltaY);
             const pinchDelta = Math.abs(state.touchState.lastPinchDist - dist);
             
-            // Auto-detect gesture type: if pinch distance change is significant, it's a pinch
-            if (state.touchState.twoFingerGestureType === null) {
-                if (pinchDelta > state.touchState.pinchDistThreshold) {
-                    state.touchState.twoFingerGestureType = 'pinch';
-                } else {
-                    state.touchState.twoFingerGestureType = 'rotate';
+            // Dynamic gesture detection: determine dominant movement each frame
+            // This allows switching between pinch and rotate without lifting fingers
+            const GESTURE_RATIO_THRESHOLD = 1.2; // If one is 20% larger, use that gesture
+            
+            let shouldPinch = false;
+            if (pinchDelta > 2) {
+                // Only pinch if it's clearly dominant over rotation
+                if (centerMovement === 0 || pinchDelta / Math.max(centerMovement, 1) > GESTURE_RATIO_THRESHOLD) {
+                    shouldPinch = true;
                 }
             }
             
-            // Apply gesture
-            if (state.touchState.twoFingerGestureType === 'pinch') {
+            // Apply gesture based on detected movement
+            if (shouldPinch) {
                 // Pinch zoom
                 const pinchDeltaSigned = state.touchState.lastPinchDist - dist;
                 const ZOOM_SPEED = 0.05;
@@ -1225,16 +1230,15 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                     state.freeCamera.zoom += pinchDeltaSigned * ZOOM_SPEED;
                     state.freeCamera.zoom = Math.max(2, Math.min(50, state.freeCamera.zoom));
                 }
-            } else if (state.touchState.twoFingerGestureType === 'rotate' && isFreeCameraRef.current) {
+            } else if (centerMovement > 2) {
                 // Rotation with 2 fingers in free camera mode: orbit around pivot
-                const prevCenter = state.touchState.lastTwoFingerCenter!;
-                const deltaX = centerX - prevCenter.x;
-                const deltaY = centerY - prevCenter.y;
                 const ROTATION_SENSITIVITY = 0.005;
-                state.orbit_angle.y -= deltaX * ROTATION_SENSITIVITY;
-                state.orbit_angle.x += deltaY * ROTATION_SENSITIVITY;
+                state.orbit_angle.y -= centerDeltaX * ROTATION_SENSITIVITY;
+                state.orbit_angle.x += centerDeltaY * ROTATION_SENSITIVITY;
                 state.orbit_angle.x = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, state.orbit_angle.x));
-                state.manualCameraControl = true;
+                if (isFreeCameraRef.current) {
+                    state.manualCameraControl = true;
+                }
             }
             
             state.touchState.lastPinchDist = dist;
