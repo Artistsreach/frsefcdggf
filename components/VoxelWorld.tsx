@@ -815,6 +815,13 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
   const lastNearestNpcId = useRef<string | number | null>(null);
+
+  // Keep refs in sync with props
+  useEffect(() => {
+    isFreeCameraRef.current = isFreeCamera;
+    showCarsRef.current = showCars;
+    showPedestriansRef.current = showPedestrians;
+  }, [isFreeCamera, showCars, showPedestrians]);
   
   // Undo/Redo history - tracks build button and destroy button actions only
   const undoStackRef = useRef<Array<{ type: 'add' | 'remove', position?: [number, number, number], color?: string, size?: number, glow?: boolean, voxelId?: number }>>([]);
