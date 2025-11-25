@@ -2020,7 +2020,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         const playerPos = state.player.mesh.position; const zoom = 6;
         
         // Camera always faces player's back - positioned 180 degrees behind player's rotation
-        const playerRotationY = state.player.mesh.rotation.y;
+        // Extract Y rotation from quaternion (player uses quaternions, not rotation.y)
+        const euler = new THREE.Euler().setFromQuaternion(state.player.mesh.quaternion, 'YXZ');
+        const playerRotationY = euler.y;
         const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
         
         // Smoothly interpolate using shortest circular path
