@@ -2021,8 +2021,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         
         // Auto-rotate camera based on player movement direction (like driving)
         if (movementMagnitude > 0.1) {
-            // Calculate movement direction angle
-            const moveAngle = Math.atan2(-movement.x, -movement.y);
+            // Calculate movement direction angle - fixed to handle all 360 degrees
+            const moveAngle = Math.atan2(movement.x, -movement.y);
             // Smoothly interpolate camera yaw to follow movement direction
             const angleDiff = moveAngle - orbit_angle.y;
             const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
