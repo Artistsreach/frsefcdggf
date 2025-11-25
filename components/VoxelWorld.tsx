@@ -1278,18 +1278,35 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
-        // Deduplicate voxels by position to only track unique voxels
-        const uniqueVoxels = new Map<string, any>();
+        // Deduplicate voxels by position and capture actual voxel IDs from the map
+        const uniquePositions = new Map<string, any>();
         currentDragVoxelsRef.current.forEach(v => {
             const key = `${v.position[0]},${v.position[1]},${v.position[2]}`;
-            if (!uniqueVoxels.has(key)) {
-                uniqueVoxels.set(key, v);
+            if (!uniquePositions.has(key)) {
+                uniquePositions.set(key, v);
             }
         });
-        const dedupedVoxels = Array.from(uniqueVoxels.values());
-        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'tracked voxels,', dedupedVoxels.length, 'unique. Adding to undo stack');
-        undoStackRef.current.push({ type: 'add', voxels: dedupedVoxels });
-        redoStackRef.current = [];
+        
+        // Look up actual voxel IDs from the map for each position
+        const dedupedVoxels: any[] = [];
+        uniquePositions.forEach((v, posKey) => {
+            const voxelData = state.voxelMap.get(posKey);
+            if (voxelData) {
+                dedupedVoxels.push({ 
+                    voxelId: voxelData.id, 
+                    position: v.position, 
+                    color: v.color, 
+                    size: v.size, 
+                    glow: v.glow 
+                });
+            }
+        });
+        
+        if (dedupedVoxels.length > 0) {
+            console.log('PointerUp: drag ended, storing', dedupedVoxels.length, 'unique voxels with IDs');
+            undoStackRef.current.push({ type: 'add', voxels: dedupedVoxels });
+            redoStackRef.current = [];
+        }
         currentDragVoxelsRef.current = [];
      }
      
@@ -2473,11 +2490,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         if (action.voxels) {
             console.log('Undo: removing', action.voxels.length, 'dragged voxels');
             action.voxels.forEach((v: any) => {
-                // Lookup voxel by position
-                const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
-                if (voxelData) {
-                    console.log('Undo: removing voxel at', v.position, 'id:', voxelData.id);
-                    onRemoveVoxel(voxelData.id);
+                // Use stored voxel ID if available (drag voxels have IDs), otherwise lookup by position
+                const voxelId = v.voxelId || state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`)?.id;
+                if (voxelId) {
+                    console.log('Undo: removing voxel id:', voxelId);
+                    onRemoveVoxel(voxelId);
                 }
             });
         } else {
