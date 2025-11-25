@@ -54,6 +54,8 @@ export interface VoxelWorldApi {
     setForSaleSigns: (signs: [number, number, number][]) => void;
     startGenerativeBuild: (prompt: string, signPosition: [number, number, number]) => Promise<void>;
     pickUpItem: () => { type: string; id: string } | null;
+    undo: () => void;
+    redo: () => void;
 }
 
 // --- Randomization Data for Pedestrians ---
@@ -813,6 +815,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
   const lastNearestNpcId = useRef<string | number | null>(null);
+  
+  // Undo/Redo history
+  const undoStackRef = useRef<Array<{ type: 'add' | 'remove', voxels: any[] }>>([]);
+  const redoStackRef = useRef<Array<{ type: 'add' | 'remove', voxels: any[] }>>([]);
+  const currentDragVoxelsRef = useRef<any[]>([]);
 
   const state = useRef({
     // Scene
@@ -1081,6 +1088,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     state.touchState.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (state.touchState.activePointers.size === 1) {
+        currentDragVoxelsRef.current = [];
         state.touchState.isTapCandidate = true;
         state.touchState.tapStartX = e.clientX;
         state.touchState.tapStartY = e.clientY;
@@ -1168,6 +1176,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                         0,
                         snapToGrid(pos.z, selectedSize)
                     ];
+                    const voxelData = { position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled };
+                    currentDragVoxelsRef.current.push(voxelData);
                     onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
                 }
             }
@@ -1262,6 +1272,12 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   const handlePointerUp = (e: React.PointerEvent) => {
      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
      state.touchState.activePointers.delete(e.pointerId);
+     
+     if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
+        undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
+        redoStackRef.current = [];
+        currentDragVoxelsRef.current = [];
+     }
      
      if (state.touchState.activePointers.size < 2) {
         state.touchState.lastPinchDist = null;
@@ -2428,6 +2444,36 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     }
   };
 
+  const performUndo = () => {
+    const action = undoStackRef.current.pop();
+    if (!action) return;
+    
+    if (action.type === 'add') {
+        action.voxels.forEach(v => {
+            const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+            if (voxelData) onRemoveVoxel(voxelData.id);
+        });
+    } else if (action.type === 'remove') {
+        onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
+    }
+    redoStackRef.current.push(action);
+  };
+
+  const performRedo = () => {
+    const action = redoStackRef.current.pop();
+    if (!action) return;
+    
+    if (action.type === 'add') {
+        onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
+    } else if (action.type === 'remove') {
+        action.voxels.forEach(v => {
+            const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+            if (voxelData) onRemoveVoxel(voxelData.id);
+        });
+    }
+    undoStackRef.current.push(action);
+  };
+
   useImperativeHandle(ref, () => ({
     build: () => { 
       if (state.targetBlock) { 
@@ -2439,9 +2485,22 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
           snapToGrid(rawPos.z, selectedSize)
         ];
         onAddVoxel(newPosition, selectedColor, selectedSize, state.isGlowEnabled);
+        undoStackRef.current.push({ type: 'add', voxels: [{ position: newPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled }] });
+        redoStackRef.current = [];
       }
     },
-    destroy: () => { if (state.targetBlock) onRemoveVoxel(state.targetBlock.id); },
+    destroy: () => { 
+      if (state.targetBlock) {
+        const voxelData = state.voxelMap.get(`${state.targetBlock.position.x},${state.targetBlock.position.y},${state.targetBlock.position.z}`);
+        if (voxelData) {
+          undoStackRef.current.push({ type: 'remove', voxels: [{ position: [state.targetBlock.position.x, state.targetBlock.position.y, state.targetBlock.position.z], color: voxels.find(v => v.id === voxelData.id)?.color || '#ffffff', glow: voxels.find(v => v.id === voxelData.id)?.glow }] });
+          redoStackRef.current = [];
+          onRemoveVoxel(state.targetBlock.id);
+        }
+      }
+    },
+    undo: performUndo,
+    redo: performRedo,
     jump: () => { if (state.player.isGrounded && !isFreeCamera) state.player.velocity.y = 10; },
     startConversation,
     endConversation,
