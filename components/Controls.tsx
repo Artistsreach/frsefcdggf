@@ -11,6 +11,8 @@ interface ControlsProps {
   onBuild: () => void;
   onDestroy: () => void;
   onJump: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
   isFreeCamera: boolean;
   onToggleFreeCamera: () => void;
   isNearNPC: boolean;
@@ -61,6 +63,18 @@ const CameraIcon = () => (
     </svg>
 );
 
+const UndoIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6m-6 6h12a6 6 0 010 12h-3" />
+    </svg>
+);
+
+const RedoIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+    </svg>
+);
+
 const Controls: React.FC<ControlsProps> = ({
   selectedColor,
   setSelectedColor,
@@ -71,6 +85,8 @@ const Controls: React.FC<ControlsProps> = ({
   onBuild,
   onDestroy,
   onJump,
+  onUndo,
+  onRedo,
   isFreeCamera,
   onToggleFreeCamera,
   isNearNPC,
@@ -260,13 +276,33 @@ const Controls: React.FC<ControlsProps> = ({
                         </div>
                     )}
 
-                    <button
-                        onClick={onDestroy}
-                        className="w-14 h-14 bg-red-500/90 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg border-2 border-red-400 active:scale-90 transition-transform"
-                        aria-label="Destroy Block"
-                    >
-                        <DestroyIcon />
-                    </button>
+                    <div className="flex flex-col gap-2">
+                        <button
+                            onClick={onDestroy}
+                            className="w-14 h-14 bg-red-500/90 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-lg border-2 border-red-400 active:scale-90 transition-transform"
+                            aria-label="Destroy Block"
+                        >
+                            <DestroyIcon />
+                        </button>
+                        <div className="flex gap-2 justify-center">
+                            <button
+                                onClick={onUndo}
+                                className="w-10 h-10 bg-blue-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-md border border-blue-300 active:scale-90 transition-transform"
+                                aria-label="Undo"
+                                title="Undo"
+                            >
+                                <UndoIcon />
+                            </button>
+                            <button
+                                onClick={onRedo}
+                                className="w-10 h-10 bg-blue-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white shadow-md border border-blue-300 active:scale-90 transition-transform"
+                                aria-label="Redo"
+                                title="Redo"
+                            >
+                                <RedoIcon />
+                            </button>
+                        </div>
+                    </div>
                     <button
                         onPointerDown={handleBuildDown}
                         onPointerUp={handleBuildUp}

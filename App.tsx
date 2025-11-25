@@ -832,6 +832,8 @@ const App: React.FC = () => {
         onBuild={() => voxelWorldRef.current?.build()}
         onDestroy={() => voxelWorldRef.current?.destroy()}
         onJump={() => voxelWorldRef.current?.jump()}
+        onUndo={() => voxelWorldRef.current?.undo()}
+        onRedo={() => voxelWorldRef.current?.redo()}
         isFreeCamera={isFreeCamera}
         onToggleFreeCamera={() => setIsFreeCamera(!isFreeCamera)}
         isNearNPC={!!nearbyNpc}
