@@ -2446,14 +2446,21 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
   const performUndo = () => {
     const action = undoStackRef.current.pop();
-    if (!action) return;
+    console.log('Undo called, stack length:', undoStackRef.current.length + 1, 'action:', action);
+    if (!action) {
+      console.log('No action to undo');
+      return;
+    }
     
     if (action.type === 'add') {
+        console.log('Undoing add, removing voxels:', action.voxels);
         action.voxels.forEach(v => {
             const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+            console.log('Looking up voxel at', v.position, 'found:', voxelData?.id);
             if (voxelData) onRemoveVoxel(voxelData.id);
         });
     } else if (action.type === 'remove') {
+        console.log('Undoing remove, restoring voxels:', action.voxels);
         onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
     }
     redoStackRef.current.push(action);
@@ -2461,13 +2468,20 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
   const performRedo = () => {
     const action = redoStackRef.current.pop();
-    if (!action) return;
+    console.log('Redo called, stack length:', redoStackRef.current.length + 1, 'action:', action);
+    if (!action) {
+      console.log('No action to redo');
+      return;
+    }
     
     if (action.type === 'add') {
+        console.log('Redoing add, restoring voxels:', action.voxels);
         onAddVoxels(action.voxels.map(v => ({ position: v.position as [number, number, number], color: v.color, glow: v.glow })));
     } else if (action.type === 'remove') {
+        console.log('Redoing remove, removing voxels:', action.voxels);
         action.voxels.forEach(v => {
             const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+            console.log('Looking up voxel at', v.position, 'found:', voxelData?.id);
             if (voxelData) onRemoveVoxel(voxelData.id);
         });
     }
