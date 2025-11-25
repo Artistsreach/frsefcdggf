@@ -917,6 +917,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     // Camera
     cameraTarget: new THREE.Vector3(),
     orbit_angle: { x: 0.2, y: 0, },
+    manualCameraControl: false,
     touchState: {
         activePointers: new Map<number, { x: number, y: number }>(),
         lastPinchDist: null as number | null,
@@ -1174,6 +1175,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             state.orbit_angle.y -= deltaX * SENSITIVITY;
             state.orbit_angle.x += deltaY * SENSITIVITY;
             state.orbit_angle.x = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, state.orbit_angle.x));
+            state.manualCameraControl = true;
         }
     } else if (state.touchState.activePointers.size === 2) {
         // 2 fingers: Distinguish between pinch (zoom) and rotation (orbit)
@@ -1228,6 +1230,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 state.orbit_angle.y -= deltaX * ROTATION_SENSITIVITY;
                 state.orbit_angle.x += deltaY * ROTATION_SENSITIVITY;
                 state.orbit_angle.x = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, state.orbit_angle.x));
+                state.manualCameraControl = true;
             }
             
             state.touchState.lastPinchDist = dist;
@@ -1893,6 +1896,9 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     if (isFreeCameraRef.current) {
         player.velocity.x = 0; player.velocity.z = 0; player.run_time = 0;
     } else {
+        if (movementMagnitude > 0.1) {
+            state.manualCameraControl = false;
+        }
         const forward = new THREE.Vector3();
         state.camera.getWorldDirection(forward);
         forward.y = 0; forward.normalize();
@@ -2019,16 +2025,19 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     } else {
         const playerPos = state.player.mesh.position; const zoom = 6;
         
-        // Camera always faces player's back - positioned 180 degrees behind player's rotation
-        // Extract Y rotation from quaternion (player uses quaternions, not rotation.y)
-        const euler = new THREE.Euler().setFromQuaternion(state.player.mesh.quaternion, 'YXZ');
-        const playerRotationY = euler.y;
-        const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
-        
-        // Smoothly interpolate using shortest circular path
-        const lerpFactor = Math.min(delta * 5, 1);
-        const angleDiff = Math.atan2(Math.sin(targetCameraAngle - orbit_angle.y), Math.cos(targetCameraAngle - orbit_angle.y));
-        orbit_angle.y += angleDiff * lerpFactor;
+        // If manual camera control is active, keep the camera at its current angle
+        if (!state.manualCameraControl) {
+            // Camera always faces player's back - positioned 180 degrees behind player's rotation
+            // Extract Y rotation from quaternion (player uses quaternions, not rotation.y)
+            const euler = new THREE.Euler().setFromQuaternion(state.player.mesh.quaternion, 'YXZ');
+            const playerRotationY = euler.y;
+            const targetCameraAngle = playerRotationY + Math.PI; // 180 degrees behind player
+            
+            // Smoothly interpolate using shortest circular path
+            const lerpFactor = Math.min(delta * 5, 1);
+            const angleDiff = Math.atan2(Math.sin(targetCameraAngle - orbit_angle.y), Math.cos(targetCameraAngle - orbit_angle.y));
+            orbit_angle.y += angleDiff * lerpFactor;
+        }
         
         const orbitPos = new THREE.Vector3(Math.sin(orbit_angle.y) * Math.cos(orbit_angle.x), Math.sin(orbit_angle.x), Math.cos(orbit_angle.y) * Math.cos(orbit_angle.x));
         const cameraPos = playerPos.clone().add(orbitPos.multiplyScalar(zoom));
