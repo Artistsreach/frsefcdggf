@@ -1013,8 +1013,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
       }
   };
 
-  const handleTap = (clientX: number, clientY: number) => {
-      if (!rendererRef.current) return;
+  const getPlacementPositionFromScreenCoords = (clientX: number, clientY: number): [number, number, number] | null => {
+      if (!rendererRef.current) return null;
       const rect = rendererRef.current.domElement.getBoundingClientRect();
       const x = ((clientX - rect.left) / rect.width) * 2 - 1;
       const y = -((clientY - rect.top) / rect.height) * 2 + 1;
@@ -1049,6 +1049,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                placePosition = [snapToGrid(target.x, selectedSize), 0, snapToGrid(target.z, selectedSize)];
           }
       }
+      return placePosition;
+  };
+
+  const handleTap = (clientX: number, clientY: number) => {
+      const placePosition = getPlacementPositionFromScreenCoords(clientX, clientY);
       if (placePosition) {
           onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
           undoStackRef.current.push({ type: 'add', position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
@@ -1155,34 +1160,21 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         if (isFreeCameraRef.current) {
             // Free camera: 1 finger draws voxels along a line
             if (state.touchState.lastDrawPoint && rendererRef.current) {
-                const rect = rendererRef.current.domElement.getBoundingClientRect();
-                const getWorldPoint = (clientX: number, clientY: number) => {
-                    const x = ((clientX - rect.left) / rect.width) * 2 - 1;
-                    const y = -((clientY - rect.top) / rect.height) * 2 + 1;
-                    const raycaster = new THREE.Raycaster();
-                    raycaster.setFromCamera(new THREE.Vector2(x, y), state.camera);
-                    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.5);
-                    const target = new THREE.Vector3();
-                    raycaster.ray.intersectPlane(plane, target);
-                    return target;
-                };
-                
-                const p1 = getWorldPoint(state.touchState.lastDrawPoint.x, state.touchState.lastDrawPoint.y);
-                const p2 = getWorldPoint(curr.x, curr.y);
-                
-                // Bresenham-like line drawing with steps
+                // Sample points along the line and place blocks on top of existing ones or ground
                 const steps = 5;
                 for (let i = 1; i <= steps; i++) {
                     const t = i / steps;
-                    const pos = new THREE.Vector3().lerpVectors(p1, p2, t);
-                    const placePosition: [number, number, number] = [
-                        snapToGrid(pos.x, selectedSize),
-                        0,
-                        snapToGrid(pos.z, selectedSize)
-                    ];
-                    onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
-                    // Always track the voxel for undo, store position and properties for fallback
-                    currentDragVoxelsRef.current.push({ position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                    const prevX = state.touchState.lastDrawPoint.x;
+                    const prevY = state.touchState.lastDrawPoint.y;
+                    const screenX = prevX + (curr.x - prevX) * t;
+                    const screenY = prevY + (curr.y - prevY) * t;
+                    
+                    const placePosition = getPlacementPositionFromScreenCoords(screenX, screenY);
+                    if (placePosition) {
+                        onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
+                        // Always track the voxel for undo, store position and properties for fallback
+                        currentDragVoxelsRef.current.push({ position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                    }
                 }
             }
             
