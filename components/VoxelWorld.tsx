@@ -992,9 +992,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     animatedObjects: [] as {
         id: string,
         type: 'dog' | 'bird' | 'drone' | 'helicopter' | 'ball' | 'racecar' | 'generic',
-        animationType: 'walk' | 'fly' | 'hover' | 'spin' | 'bounce' | 'drive' | 'swim',
         mesh: THREE.Group,
-        instanceIndices: number[],
+        voxelIds: number[],
         relativePositions: { x: number, y: number, z: number }[],
         animationState: {
             time: number,
@@ -1917,156 +1916,161 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 const bobOffset = Math.sin(time * 8) * 0.05;
                 
                 // Update all voxels using stored relative positions
-                obj.instanceIndices.forEach((instanceIndex, index) => {
+                obj.voxelIds.forEach((voxelId, index) => {
                     const relativePos = obj.relativePositions[index];
-                    if (relativePos !== undefined) {
+                    if (relativePos) {
                         const matrix = new THREE.Matrix4();
-                        state.instancedMesh.getMatrixAt(instanceIndex, matrix);
+                        state.instancedMesh.getMatrixAt(voxelId, matrix);
                         matrix.setPosition(
                             position.x + relativePos.x,
                             position.y + relativePos.y + bobOffset,
                             position.z + relativePos.z
                         );
-                        state.instancedMesh.setMatrixAt(instanceIndex, matrix);
+                        state.instancedMesh.setMatrixAt(voxelId, matrix);
                     }
                 });
                 state.instancedMesh.instanceMatrix.needsUpdate = true;
                 obj.mesh.position.copy(position);
             }
-        } else if (obj.animationType === 'fly') {
-            // Flying animation - follows path with wing flapping
+        } else if (obj.type === 'bird') {
+            // Bird flies along path with wing flapping
             if (obj.animationState.path) {
                 obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
                 const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
                 
-                obj.instanceIndices.forEach((instanceIndex, index) => {
+                obj.voxelIds.forEach((voxelId, index) => {
                     const relativePos = obj.relativePositions[index];
-                    if (relativePos !== undefined) {
+                    if (relativePos) {
+                        // Wing flap effect for outer voxels
                         const isWing = Math.abs(relativePos.x) > 1;
                         const flapOffset = isWing ? Math.sin(time * 10) * 0.3 : 0;
+                        
                         const matrix = new THREE.Matrix4();
-                        state.instancedMesh.getMatrixAt(instanceIndex, matrix);
-                        matrix.setPosition(position.x + relativePos.x, position.y + relativePos.y + flapOffset, position.z + relativePos.z);
-                        state.instancedMesh.setMatrixAt(instanceIndex, matrix);
+                        state.instancedMesh.getMatrixAt(voxelId, matrix);
+                        matrix.setPosition(
+                            position.x + relativePos.x,
+                            position.y + relativePos.y + flapOffset,
+                            position.z + relativePos.z
+                        );
+                        state.instancedMesh.setMatrixAt(voxelId, matrix);
                     }
                 });
                 state.instancedMesh.instanceMatrix.needsUpdate = true;
                 obj.mesh.position.copy(position);
             }
-        } else if (obj.animationType === 'hover') {
-            // Hovering animation - stationary or slow path with oscillation
+        } else if (obj.type === 'drone') {
+            // Drone hovers and moves along path
             if (obj.animationState.path) {
                 obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
                 const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
+                
+                // Hover oscillation
                 const hoverOffset = Math.sin(time * 4) * 0.15;
-                obj.instanceIndices.forEach((instanceIndex, index) => {
+                
+                obj.voxelIds.forEach((voxelId, index) => {
                     const relativePos = obj.relativePositions[index];
-                    if (relativePos !== undefined) {
+                    if (relativePos) {
                         const matrix = new THREE.Matrix4();
-                        state.instancedMesh.getMatrixAt(instanceIndex, matrix);
-                        matrix.setPosition(position.x + relativePos.x, position.y + relativePos.y + hoverOffset, position.z + relativePos.z);
-                        state.instancedMesh.setMatrixAt(instanceIndex, matrix);
+                        state.instancedMesh.getMatrixAt(voxelId, matrix);
+                        matrix.setPosition(
+                            position.x + relativePos.x,
+                            position.y + relativePos.y + hoverOffset,
+                            position.z + relativePos.z
+                        );
+                        state.instancedMesh.setMatrixAt(voxelId, matrix);
                     }
                 });
                 state.instancedMesh.instanceMatrix.needsUpdate = true;
                 obj.mesh.position.copy(position);
             }
-        } else if (obj.animationType === 'spin') {
-            // Spinning animation - rotates around center
+        } else if (obj.type === 'helicopter') {
+            // Helicopter with spinning rotors (stationary hover)
             const hoverBob = Math.sin(time * 2) * 0.1;
-            obj.instanceIndices.forEach((instanceIndex, index) => {
+            
+            obj.voxelIds.forEach((voxelId, index) => {
                 const relativePos = obj.relativePositions[index];
-                if (relativePos !== undefined) {
-                    const isTop = relativePos.y > obj.relativePositions.reduce((max, p) => Math.max(max, p.y), 0) * 0.6;
-                    let finalX = relativePos.x, finalZ = relativePos.z;
-                    if (isTop) {
+                if (relativePos) {
+                    // Rotor spin (top voxels)
+                    const isRotor = relativePos.y > 3;
+                    let finalX = relativePos.x;
+                    let finalZ = relativePos.z;
+                    
+                    if (isRotor) {
                         const angle = time * 15;
                         const radius = Math.sqrt(relativePos.x * relativePos.x + relativePos.z * relativePos.z);
                         finalX = Math.cos(angle) * radius;
                         finalZ = Math.sin(angle) * radius;
                     }
+                    
                     const matrix = new THREE.Matrix4();
-                    state.instancedMesh.getMatrixAt(instanceIndex, matrix);
-                    matrix.setPosition(obj.mesh.position.x + finalX, obj.mesh.position.y + relativePos.y + hoverBob, obj.mesh.position.z + finalZ);
-                    state.instancedMesh.setMatrixAt(instanceIndex, matrix);
+                    state.instancedMesh.getMatrixAt(voxelId, matrix);
+                    matrix.setPosition(
+                        obj.mesh.position.x + finalX,
+                        obj.mesh.position.y + relativePos.y + hoverBob,
+                        obj.mesh.position.z + finalZ
+                    );
+                    state.instancedMesh.setMatrixAt(voxelId, matrix);
                 }
             });
             state.instancedMesh.instanceMatrix.needsUpdate = true;
-        } else if (obj.animationType === 'bounce') {
-            // Bouncing animation with physics
+        } else if (obj.type === 'ball') {
+            // Ball bouncing and rolling
             const velocity = obj.animationState.velocity!;
-            velocity.y += -15 * delta;
+            const gravity = -15;
+            
+            velocity.y += gravity * delta;
             obj.mesh.position.add(velocity.clone().multiplyScalar(delta));
-            if (obj.mesh.position.y <= 0) {
-                obj.mesh.position.y = 0;
-                velocity.y = -velocity.y * 0.7;
-                velocity.x *= 0.95;
+            
+            // Check ground collision
+            const groundY = 0;
+            if (obj.mesh.position.y <= groundY) {
+                obj.mesh.position.y = groundY;
+                velocity.y = -velocity.y * 0.7; // Bounce with energy loss
+                velocity.x *= 0.95; // Friction
                 velocity.z *= 0.95;
             }
-            obj.instanceIndices.forEach((instanceIndex, index) => {
+            
+            obj.voxelIds.forEach((voxelId, index) => {
                 const relativePos = obj.relativePositions[index];
-                if (relativePos !== undefined) {
+                if (relativePos) {
                     const matrix = new THREE.Matrix4();
-                    state.instancedMesh.getMatrixAt(instanceIndex, matrix);
-                    matrix.setPosition(obj.mesh.position.x + relativePos.x, obj.mesh.position.y + relativePos.y, obj.mesh.position.z + relativePos.z);
-                    state.instancedMesh.setMatrixAt(instanceIndex, matrix);
+                    state.instancedMesh.getMatrixAt(voxelId, matrix);
+                    matrix.setPosition(
+                        obj.mesh.position.x + relativePos.x,
+                        obj.mesh.position.y + relativePos.y,
+                        obj.mesh.position.z + relativePos.z
+                    );
+                    state.instancedMesh.setMatrixAt(voxelId, matrix);
                 }
             });
             state.instancedMesh.instanceMatrix.needsUpdate = true;
-        } else if (obj.animationType === 'drive') {
-            // Driving animation - follows path with rotation
+        } else if (obj.type === 'racecar') {
+            // Race car drives along path
             if (obj.animationState.path) {
                 obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
                 const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
+                
+                // Get direction for rotation
                 const nextProgress = (obj.animationState.progress! + 0.01) % 1;
                 const nextPos = obj.animationState.path.getPointAt(nextProgress);
                 const direction = new THREE.Vector3().subVectors(nextPos, position).normalize();
                 const angle = Math.atan2(direction.x, direction.z);
-                obj.instanceIndices.forEach((instanceIndex, index) => {
+                
+                obj.voxelIds.forEach((voxelId, index) => {
                     const relativePos = obj.relativePositions[index];
-                    if (relativePos !== undefined) {
+                    if (relativePos) {
+                        // Rotate around car center
                         const rotatedX = relativePos.x * Math.cos(angle) - relativePos.z * Math.sin(angle);
                         const rotatedZ = relativePos.x * Math.sin(angle) + relativePos.z * Math.cos(angle);
+                        
                         const matrix = new THREE.Matrix4();
-                        state.instancedMesh.getMatrixAt(instanceIndex, matrix);
-                        matrix.setPosition(position.x + rotatedX, position.y + relativePos.y, position.z + rotatedZ);
-                        state.instancedMesh.setMatrixAt(instanceIndex, matrix);
-                    }
-                });
-                state.instancedMesh.instanceMatrix.needsUpdate = true;
-                obj.mesh.position.copy(position);
-            }
-        } else if (obj.animationType === 'swim') {
-            // Swimming animation - sinuous path following
-            if (obj.animationState.path) {
-                obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
-                const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
-                obj.instanceIndices.forEach((instanceIndex, index) => {
-                    const relativePos = obj.relativePositions[index];
-                    if (relativePos !== undefined) {
-                        const waveOffset = Math.sin(time * 6 + index * 0.5) * 0.2;
-                        const matrix = new THREE.Matrix4();
-                        state.instancedMesh.getMatrixAt(instanceIndex, matrix);
-                        matrix.setPosition(position.x + relativePos.x + waveOffset, position.y + relativePos.y, position.z + relativePos.z);
-                        state.instancedMesh.setMatrixAt(instanceIndex, matrix);
-                    }
-                });
-                state.instancedMesh.instanceMatrix.needsUpdate = true;
-                obj.mesh.position.copy(position);
-            }
-        } else if (obj.animationType === 'walk') {
-            // Walking animation - path following with bobbing
-            if (obj.animationState.path) {
-                obj.animationState.progress = (obj.animationState.progress! + (obj.animationState.speed! * delta)) % 1;
-                const position = obj.animationState.path.getPointAt(obj.animationState.progress!);
-                const bobOffset = Math.sin(time * 8) * 0.05;
-                obj.instanceIndices.forEach((instanceIndex, index) => {
-                    const relativePos = obj.relativePositions[index];
-                    if (relativePos !== undefined) {
-                        const matrix = new THREE.Matrix4();
-                        state.instancedMesh.getMatrixAt(instanceIndex, matrix);
-                        matrix.setPosition(position.x + relativePos.x, position.y + relativePos.y + bobOffset, position.z + relativePos.z);
-                        state.instancedMesh.setMatrixAt(instanceIndex, matrix);
+                        state.instancedMesh.getMatrixAt(voxelId, matrix);
+                        matrix.setPosition(
+                            position.x + rotatedX,
+                            position.y + relativePos.y,
+                            position.z + rotatedZ
+                        );
+                        state.instancedMesh.setMatrixAt(voxelId, matrix);
                     }
                 });
                 state.instancedMesh.instanceMatrix.needsUpdate = true;
@@ -2593,36 +2597,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     } catch (error) { console.error("Error generating building with Gemini:", error); if (closestWorker) closestWorker.isPreparing = false; }
   };
 
-  const detectAnimationType = (prompt: string): 'walk' | 'fly' | 'hover' | 'spin' | 'bounce' | 'drive' | 'swim' => {
-    const lowerPrompt = prompt.toLowerCase();
-    
-    // Movement-based detection
-    if (lowerPrompt.match(/walk|run|trot|gallop|stride|march|waddle|tread|pace/)) return 'walk';
-    if (lowerPrompt.match(/fly|soar|swoop|glide|flutter|wing/)) return 'fly';
-    if (lowerPrompt.match(/hover|hovering|stationary|float|levitate|drift|bob/)) return 'hover';
-    if (lowerPrompt.match(/spin|rotate|twirl|whirl|spinning|rotor|propeller|turbine/)) return 'spin';
-    if (lowerPrompt.match(/bounce|hop|jump|spring|bouncing|boing|ball|sphere/)) return 'bounce';
-    if (lowerPrompt.match(/drive|ride|cruise|travel|roll|race|vehicle|car|truck|bus/)) return 'drive';
-    if (lowerPrompt.match(/swim|dive|submerge|underwater|submarine|fish|whale|dolphin/)) return 'swim';
-    
-    // Object-based fallback
-    if (lowerPrompt.match(/dog|cat|rabbit|deer|horse|zebra|lion|tiger|wolf|fox|squirrel|animal/)) return 'walk';
-    if (lowerPrompt.match(/bird|eagle|owl|hawk|parrot|phoenix|dragon|pterodactyl|bee|butterfly/)) return 'fly';
-    if (lowerPrompt.match(/ball|sphere|orb|marble|puck|stone|rock|globe/)) return 'bounce';
-    if (lowerPrompt.match(/helicopter|chopper|drone|quadcopter|ufo/)) return 'hover';
-    if (lowerPrompt.match(/car|truck|race|sports|vehicle|bus|train/)) return 'drive';
-    if (lowerPrompt.match(/submarine|octopus|jellyfish|manta|stingray/)) return 'swim';
-    if (lowerPrompt.match(/top|spinner|windmill|carousel|ferris/)) return 'spin';
-    
-    return 'hover'; // Safe default
-  };
-
   const spawnGenerativeObject = async (prompt: string) => {
-    console.log('spawnGenerativeObject called with prompt:', prompt);
-    console.log('state.gemini.ai:', !!state.gemini.ai, 'state.wizard.mesh:', !!state.wizard.mesh);
-    
-    if (!state.gemini.ai) { console.error('Gemini AI not initialized'); return; }
-    if (!state.wizard.mesh) { console.error('Wizard mesh not found'); return; }
+    if (!state.gemini.ai || !state.wizard.mesh) return;
     
     // Spawn 4 units in front of wizard
     const wizardPos = state.wizard.mesh.position;
@@ -2641,14 +2617,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
         }
     }
     if (groundY === -Infinity) groundY = -1; // Default to ground level if not found
-    
-    console.log(`Spawning at position (${sx}, ${groundY + 1}, ${sz})`);
 
-    // Detect animation type dynamically
-    const animationType = detectAnimationType(prompt);
-    console.log('Detected animation type:', animationType);
-
-    // Detect object type from prompt (legacy, for size hints)
+    // Detect object type from prompt
     const lowerPrompt = prompt.toLowerCase();
     let objectType: 'dog' | 'bird' | 'drone' | 'helicopter' | 'ball' | 'racecar' | 'generic' = 'generic';
     
@@ -2683,7 +2653,6 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             sizeHint = 'A race car should be about 2 blocks tall, 4-5 blocks long, and 2-3 blocks wide (life-size vehicle).';
         }
         
-        console.log('Requesting voxel generation from Gemini...');
         const response = await state.gemini.ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Generate a LIFE-SIZE voxel model for: "${prompt}".
@@ -2711,10 +2680,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             }
         });
 
-        console.log('Gemini response received, parsing...');
         const data = JSON.parse(response.text);
-        console.log('Parsed voxel data, count:', Array.isArray(data) ? data.length : 'NOT AN ARRAY');
-        
         if (Array.isArray(data)) {
             // Store relative positions before converting to world coordinates
             const relativePositions = data.map((v: any) => ({
@@ -2732,26 +2698,19 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 color: v.color
             }));
             
-            console.log('Adding voxels to scene, count:', voxelsToAdd.length);
-            // Get current voxel count before adding
-            const instanceStartIndex = state.voxels.length;
-            
-            // Add voxels - onAddVoxels returns void, so we use the number of voxels we're adding
-            onAddVoxels(voxelsToAdd);
-            
-            // Instance indices are sequential from where we started
-            const instanceIndices = Array.from({ length: voxelsToAdd.length }, (_, i) => instanceStartIndex + i);
-            console.log('Created instance indices:', instanceIndices.length, 'starting from index', instanceStartIndex);
+            // Add voxels and get their IDs
+            const addedVoxelData = onAddVoxels(voxelsToAdd);
+            const voxelIds = addedVoxelData.map(v => v.id);
             
             // Create animated object mesh
             const objectGroup = new THREE.Group();
             objectGroup.position.set(sx, groundY + 1, sz);
             state.scene.add(objectGroup);
             
-            // Create animation state based on detected animation type
+            // Create animation state based on type
             const animationState: any = { time: 0 };
             
-            if (animationType === 'walk' || animationType === 'drive') {
+            if (objectType === 'dog' || objectType === 'racecar') {
                 // Create a random path around the spawn area
                 const pathPoints: THREE.Vector3[] = [];
                 const radius = 8;
@@ -2765,60 +2724,46 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 }
                 animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
                 animationState.progress = 0;
-                animationState.speed = animationType === 'walk' ? 0.02 : 0.05;
-            } else if (animationType === 'fly' || animationType === 'hover') {
-                // Create a flying/hovering path
+                animationState.speed = objectType === 'dog' ? 0.02 : 0.05;
+            } else if (objectType === 'bird' || objectType === 'drone') {
+                // Create a flying path
                 const pathPoints: THREE.Vector3[] = [];
-                const radius = animationType === 'hover' ? 3 : 10;
-                const height = groundY + (animationType === 'hover' ? 5 : 8);
+                const radius = 10;
+                const height = groundY + 8;
                 for (let i = 0; i < 8; i++) {
                     const angle = (i / 8) * Math.PI * 2;
                     pathPoints.push(new THREE.Vector3(
                         sx + Math.cos(angle) * radius,
-                        height + Math.sin(angle * 2) * (animationType === 'hover' ? 1 : 2),
+                        height + Math.sin(angle * 2) * 2,
                         sz + Math.sin(angle) * radius
                     ));
                 }
                 animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
                 animationState.progress = 0;
-                animationState.speed = animationType === 'fly' ? 0.015 : 0.01;
-            } else if (animationType === 'bounce') {
+                animationState.speed = objectType === 'bird' ? 0.015 : 0.02;
+            } else if (objectType === 'helicopter') {
+                animationState.rotation = new THREE.Euler(0, 0, 0);
+                animationState.velocity = new THREE.Vector3(0, 0, 0);
+            } else if (objectType === 'ball') {
                 animationState.velocity = new THREE.Vector3(
                     (Math.random() - 0.5) * 0.2,
                     0.3,
                     (Math.random() - 0.5) * 0.2
                 );
-            } else if (animationType === 'spin') {
-                animationState.rotation = new THREE.Euler(0, 0, 0);
-            } else if (animationType === 'swim') {
-                // Create a wavy swimming path
-                const pathPoints: THREE.Vector3[] = [];
-                const radius = 6;
-                for (let i = 0; i < 12; i++) {
-                    const angle = (i / 12) * Math.PI * 2;
-                    pathPoints.push(new THREE.Vector3(
-                        sx + Math.cos(angle) * radius,
-                        groundY + 2,
-                        sz + Math.sin(angle) * radius
-                    ));
-                }
-                animationState.path = new THREE.CatmullRomCurve3(pathPoints, true);
-                animationState.progress = 0;
-                animationState.speed = 0.015;
+                animationState.bouncePhase = 0;
             }
             
-            // Store animated object with detected animation type
+            // Store animated object
             state.animatedObjects.push({
                 id: `animated_${Date.now()}_${Math.random()}`,
                 type: objectType,
-                animationType: animationType,
                 mesh: objectGroup,
-                instanceIndices,
+                voxelIds,
                 relativePositions,
                 animationState
             });
             
-            console.log(`Spawned animated ${objectType} with ${instanceIndices.length} voxels (instances ${instanceStartIndex}-${instanceStartIndex + instanceIndices.length - 1}) at (${sx}, ${groundY + 1}, ${sz})`);
+            console.log(`Spawned animated ${objectType} with ${voxelIds.length} voxels at (${sx}, ${groundY + 1}, ${sz})`);
         }
     } catch (e) {
         console.error("Error spawning object:", e);
