@@ -1175,7 +1175,14 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                     if (placePosition) {
                         onAddVoxel(placePosition, selectedColor, selectedSize, state.isGlowEnabled);
                         // Always track the voxel for undo, store position and properties for fallback
-                        currentDragVoxelsRef.current.push({ position: placePosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                        // Ensure position is stored as integers to match voxelMap keys
+                        const intPosition: [number, number, number] = [
+                            Math.round(placePosition[0]),
+                            Math.round(placePosition[1]),
+                            Math.round(placePosition[2])
+                        ];
+                        currentDragVoxelsRef.current.push({ position: intPosition, color: selectedColor, size: selectedSize, glow: state.isGlowEnabled });
+                        console.log('Drag: collected voxel at', intPosition, 'total:', currentDragVoxelsRef.current.length);
                     }
                 }
             }
@@ -2450,31 +2457,33 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
     }
     
     const action = undoStackRef.current.pop();
-    console.log('Undo: popped action:', action);
+    console.log('Undo: popped action:', JSON.stringify(action));
     if (!action) return;
     
     if (action.type === 'add') {
         // Handle both single voxel and multiple voxels from drag
-        if (action.voxels) {
+        if (action.voxels && Array.isArray(action.voxels)) {
             console.log('Undo: removing', action.voxels.length, 'dragged/batch voxels');
-            action.voxels.forEach((v: any) => {
-                // Lookup voxel by position
-                const voxelData = state.voxelMap.get(`${v.position[0]},${v.position[1]},${v.position[2]}`);
+            action.voxels.forEach((v: any, index: number) => {
+                // Ensure position is integers when looking up
+                const lookupKey = `${Math.round(v.position[0])},${Math.round(v.position[1])},${Math.round(v.position[2])}`;
+                const voxelData = state.voxelMap.get(lookupKey);
+                console.log(`Undo voxel[${index}]: looking up "${lookupKey}", found:`, voxelData ? voxelData.id : 'NOT FOUND');
                 if (voxelData) {
-                    console.log('Undo: removing voxel at', v.position, 'id:', voxelData.id);
                     onRemoveVoxel(voxelData.id);
                 } else {
-                    console.warn('Undo: voxel not found at', v.position);
+                    console.warn(`Undo: voxel not found at key "${lookupKey}"`, 'position was:', v.position);
                 }
             });
         } else {
             // Single voxel from build button or tap
-            console.log('Undo: removing single voxel at', action.position);
-            const voxelData = state.voxelMap.get(`${action.position[0]},${action.position[1]},${action.position[2]}`);
+            const lookupKey = `${Math.round(action.position[0])},${Math.round(action.position[1])},${Math.round(action.position[2])}`;
+            console.log('Undo: removing single voxel, looking up:', lookupKey);
+            const voxelData = state.voxelMap.get(lookupKey);
             if (voxelData) {
                 onRemoveVoxel(voxelData.id);
             } else {
-                console.warn('Undo: single voxel not found at', action.position);
+                console.warn('Undo: single voxel not found at', lookupKey, 'action.position was:', action.position);
             }
         }
     } else if (action.type === 'remove') {
