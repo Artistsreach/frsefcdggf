@@ -2709,11 +2709,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
   const updateCars = (delta: number) => {
     const INTERSECTION_RADIUS = 20; const YIELD_DISTANCE = 25; const SAFE_TIME_HEADWAY = 1.6; const MIN_DISTANCE = 6.0; const MAX_ACCEL = 1.5; const MAX_DECEL = 3.0; const JAM_THRESHOLD = 3.0; const JAM_NUDGE_FACTOR = 0.5;
-    const CAR_RADIUS = 2.5; const COLLISION_REPULSION = 80.0; const LATERAL_DAMPING = 0.92;
+    const CAR_RADIUS = 2.5; const COLLISION_REPULSION = 120.0; const LATERAL_DAMPING = 0.90;
     
     // Spring physics for rebounding
-    const SPRING_K = 2.5; // Strength of return to path - reduced to allow more lateral movement
-    const DAMPING = 0.85; // Friction on lateral movement
+    const SPRING_K = 1.5; // Strength of return to path - much weaker to prioritize collision avoidance
+    const DAMPING = 0.80; // Friction on lateral movement
 
     const carAccelerations = state.cars.map((car, carIndex) => {
         let leadCarInfo: { distance: number, car: any | null } = { distance: Infinity, car: null };
@@ -2771,9 +2771,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             if (index === otherIndex) return;
             const toOther = new THREE.Vector3().subVectors(otherCar.mesh.position, car.mesh.position);
             const distance = toOther.length();
-            const minSeparation = CAR_RADIUS * 2.2; // Add safety margin
+            const hardMinSeparation = CAR_RADIUS * 2.2; // Hard collision boundary
+            const softMinSeparation = CAR_RADIUS * 5.0; // Predictive detection radius
             
-            if (distance < minSeparation && distance > 0.1) {
+            // Apply repulsion in the detection zone (before collision)
+            if (distance < softMinSeparation && distance > 0.1) {
                 toOther.normalize();
                 // Repulsion pushes away laterally (not along forward direction)
                 const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(car.mesh.quaternion);
@@ -2781,7 +2783,16 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                 // Project repulsion onto lateral plane (perpendicular to forward)
                 const lateralComponent = repulsion.clone().sub(forwardDir.clone().multiplyScalar(forwardDir.dot(repulsion)));
                 lateralComponent.normalize();
-                const repulsionMagnitude = (minSeparation - distance) * COLLISION_REPULSION;
+                
+                // Exponential force curve: increases dramatically near collision
+                let repulsionMagnitude;
+                if (distance < hardMinSeparation) {
+                    // Hard collision zone: maximum repulsion
+                    repulsionMagnitude = COLLISION_REPULSION * 3.0;
+                } else {
+                    // Soft zone: scaled up more aggressively
+                    repulsionMagnitude = (softMinSeparation - distance) * (COLLISION_REPULSION * 1.5);
+                }
                 repulsionForce.add(lateralComponent.multiplyScalar(repulsionMagnitude));
             }
         });
