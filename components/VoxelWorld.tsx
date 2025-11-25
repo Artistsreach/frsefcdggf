@@ -2709,11 +2709,11 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
 
   const updateCars = (delta: number) => {
     const INTERSECTION_RADIUS = 20; const YIELD_DISTANCE = 25; const SAFE_TIME_HEADWAY = 1.6; const MIN_DISTANCE = 6.0; const MAX_ACCEL = 1.5; const MAX_DECEL = 3.0; const JAM_THRESHOLD = 3.0; const JAM_NUDGE_FACTOR = 0.5;
-    const CAR_RADIUS = 2.5; const COLLISION_REPULSION = 15.0; const LATERAL_DAMPING = 0.95;
+    const CAR_RADIUS = 2.5; const COLLISION_REPULSION = 80.0; const LATERAL_DAMPING = 0.92;
     
     // Spring physics for rebounding
-    const SPRING_K = 5.0; // Strength of return to path
-    const DAMPING = 0.9; // Friction on lateral movement
+    const SPRING_K = 2.5; // Strength of return to path - reduced to allow more lateral movement
+    const DAMPING = 0.85; // Friction on lateral movement
 
     const carAccelerations = state.cars.map((car, carIndex) => {
         let leadCarInfo: { distance: number, car: any | null } = { distance: Infinity, car: null };
@@ -2724,7 +2724,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             const distance = toOther.length();
             if (distance < YIELD_DISTANCE) {
                 toOther.normalize();
-                if (carForward.dot(toOther) > 0.85) { if (distance < leadCarInfo.distance) leadCarInfo = { distance, car: otherCar }; }
+                // Check for cars ahead or slightly offset (allows detecting cars in adjacent lanes too)
+                if (carForward.dot(toOther) > 0.7) { if (distance < leadCarInfo.distance) leadCarInfo = { distance, car: otherCar }; }
             }
         });
         let targetSpeed = car.desiredSpeed;
@@ -2733,6 +2734,10 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             if (car.timeStationary > JAM_THRESHOLD) effectiveMinDistance *= JAM_NUDGE_FACTOR;
             const safeDistance = effectiveMinDistance + car.speed * SAFE_TIME_HEADWAY;
             if (leadCarInfo.distance < safeDistance) targetSpeed = car.desiredSpeed * (leadCarInfo.distance / safeDistance);
+        }
+        // If car has moved significantly to the side, it's in a passing lane - allow higher speed
+        if (car.offset.length() > 2.0) {
+            targetSpeed = Math.min(car.desiredSpeed * 1.1, car.desiredSpeed + 2);
         }
         const lookAheadPos = car.path.getPointAt((car.progress + 0.05) % 1);
         let approachingIntersection = null;
@@ -2797,8 +2802,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             // Apply velocity to offset
             car.offset.add(car.displacementVelocity.clone().multiplyScalar(delta));
             // Limit lateral offset to prevent cars from straying too far from path
-            if (car.offset.length() > 4.0) {
-                car.offset.normalize().multiplyScalar(4.0);
+            if (car.offset.length() > 6.0) {
+                car.offset.normalize().multiplyScalar(6.0);
             }
 
             const pathPosition = car.path.getPointAt(car.progress);
