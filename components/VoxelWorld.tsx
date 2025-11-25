@@ -2028,12 +2028,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
             // Normalize angle difference to shortest path
             while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
             while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-            // If nearly opposite direction (shadow angle), flip camera quickly
-            if (Math.abs(angleDiff) > Math.PI * 0.8) {
-                orbit_angle.y = moveAngle;
-            } else {
-                orbit_angle.y += angleDiff * Math.min(delta * 5, 1); // Smoothly track movement
-            }
+            orbit_angle.y += angleDiff * Math.min(delta * 5, 1); // Smoothly track movement
         }
         
         const orbitPos = new THREE.Vector3(Math.sin(orbit_angle.y) * Math.cos(orbit_angle.x), Math.sin(orbit_angle.x), Math.cos(orbit_angle.y) * Math.cos(orbit_angle.x));
