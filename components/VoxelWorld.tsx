@@ -1093,7 +1093,7 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
                  handleDestroy(state.touchState.tapStartX, state.touchState.tapStartY);
                  state.touchState.isTapCandidate = false;
              }
-        }, 3000);
+        }, 1600);
     } else {
         state.touchState.isTapCandidate = false;
         if (state.touchState.longPressTimer) {
