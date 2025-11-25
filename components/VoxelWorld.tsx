@@ -1278,8 +1278,17 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
      state.touchState.activePointers.delete(e.pointerId);
      
      if (state.touchState.activePointers.size === 0 && currentDragVoxelsRef.current.length > 0) {
-        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'voxels. Adding to undo stack:', currentDragVoxelsRef.current);
-        undoStackRef.current.push({ type: 'add', voxels: [...currentDragVoxelsRef.current] });
+        // Deduplicate voxels by position to only track unique voxels
+        const uniqueVoxels = new Map<string, any>();
+        currentDragVoxelsRef.current.forEach(v => {
+            const key = `${v.position[0]},${v.position[1]},${v.position[2]}`;
+            if (!uniqueVoxels.has(key)) {
+                uniqueVoxels.set(key, v);
+            }
+        });
+        const dedupedVoxels = Array.from(uniqueVoxels.values());
+        console.log('PointerUp: drag ended with', currentDragVoxelsRef.current.length, 'tracked voxels,', dedupedVoxels.length, 'unique. Adding to undo stack');
+        undoStackRef.current.push({ type: 'add', voxels: dedupedVoxels });
         redoStackRef.current = [];
         currentDragVoxelsRef.current = [];
      }
