@@ -799,6 +799,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
   currentCash,
   currentStamina,
   worldTheme,
+  showCars,
+  showPedestrians,
 }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -3575,8 +3577,8 @@ const VoxelWorld = forwardRef<VoxelWorldApi, VoxelWorldProps>(({
       if (logic.updateWizard) logic.updateWizard(delta);
       if (logic.updateCustomNPCs) logic.updateCustomNPCs(delta);
       if (logic.updateCars) logic.updateCars(delta);
-      if (logic.updateDrivableCars && showCars) logic.updateDrivableCars(delta);
-      if (logic.updatePedestrians && showPedestrians) logic.updatePedestrians(delta);
+      if (logic.updateDrivableCars && showCarsRef.current) logic.updateDrivableCars(delta);
+      if (logic.updatePedestrians && showPedestriansRef.current) logic.updatePedestrians(delta);
       if (logic.updateConstructionWorkers) logic.updateConstructionWorkers(delta);
       if (logic.updateTrain) logic.updateTrain(delta);
       if (logic.updateCarCollisions) logic.updateCarCollisions();
